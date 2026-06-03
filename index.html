@@ -799,7 +799,7 @@ function renderWS(){
           if(wsCurFilter==='has'&&!img)return;
           if(wsCurFilter==='miss'&&img)return;
           var catEl=document.createElement('div');catEl.className='ws-cat '+(img?'has':'miss');
-          if(img)catEl.innerHTML='<img src="'+img+'" onerror="this.style.display='none'"><span>'+l3+'</span>';
+          if(img)catEl.innerHTML='<img src="'+img+'" style="width:32px;height:32px;object-fit:cover;border-radius:4px"><span>'+l3+'</span>';
           else catEl.innerHTML='<div class="ws-ph">?</div><span style="color:#aaa">'+l3+'</span>';
           l3list.appendChild(catEl);
         });
