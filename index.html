@@ -282,7 +282,7 @@ async function loadFromGitHub(){
     var meta=await res.json();
     _dataSha=meta.sha;
     // Hämta innehållet via raw-URL (ingen 1MB-begränsning)
-    var rawRes=await fetch('https://raw.githubusercontent.com/'+GH.owner+'/'+GH.repo+'/main/'+GH.file+'?t='+Date.now(),
+    var rawRes=await fetch('https://'+GH.owner+'.github.io/'+GH.repo+'/'+GH.file+'?t='+Date.now(),
       {cache:'no-store'});
     if(!rawRes.ok)throw new Error('Raw HTTP '+rawRes.status);
     D=await rawRes.json();
