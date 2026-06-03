@@ -165,6 +165,8 @@ h1{color:#1F4E79;margin-bottom:4px;font-size:24px}
   <button onclick="fetchLatest()" style="border-color:#2E75B6;color:#2E75B6;font-weight:bold" title="Hämta senaste versionen från GitHub">🔄 Hämta senaste</button>
   <button onclick="clearSaved()" style="border-color:#c44;color:#c44;font-size:11px" title="Återställ från GitHub">↺ Återställ</button>
   <button onclick="showGhSetup()" style="border-color:#888;color:#666;font-size:11px" title="GitHub-inställningar">⚙ GitHub</button>
+  <button id="undo-btn" onclick="doUndo()" disabled style="padding:6px 12px;font-size:12px;cursor:pointer;border:1px solid #ccc;background:white;border-radius:6px;opacity:0.4" title="Ångra (0 steg)">↩ Ångra</button>
+  <button id="redo-btn" onclick="doRedo()" disabled style="padding:6px 12px;font-size:12px;cursor:pointer;border:1px solid #ccc;background:white;border-radius:6px;opacity:0.4" title="Gör om">↪ Gör om</button>
   <span id="sync-status" class="sync-badge sync-loading">⏳ Startar...</span>
 </div>
 
@@ -258,6 +260,8 @@ var D = [];
 var WOO_ORIG = null; // set after first load
 var MAPPING = [];
 var _dataSha = null;
+var _undoStack = [];
+var _redoStack = [];
 
 // ── Hjälp: base64-encode med Unicode-stöd ────────────────────────────────
 function strToB64(str){
@@ -302,8 +306,42 @@ async function loadFromGitHub(){
   }
 }
 
+// ── Undo / Redo ────────────────────────────────────────────────────────────
+function pushUndo(){
+  _undoStack.push({D:JSON.stringify(D),WOO:JSON.stringify(WOO)});
+  if(_undoStack.length>20)_undoStack.shift();
+  _redoStack=[];
+  updateUndoBtn();
+}
+function doUndo(){
+  if(!_undoStack.length)return;
+  _redoStack.push({D:JSON.stringify(D),WOO:JSON.stringify(WOO)});
+  var prev=_undoStack.pop();
+  D=JSON.parse(prev.D);WOO=JSON.parse(prev.WOO);
+  render();updateUndoBtn();
+  setSyncStatus('warn','⚠ Ångrat — klicka 🔄 Hämta senaste för att avbryta eller spara för att bekräfta');
+}
+function doRedo(){
+  if(!_redoStack.length)return;
+  _undoStack.push({D:JSON.stringify(D),WOO:JSON.stringify(WOO)});
+  var next=_redoStack.pop();
+  D=JSON.parse(next.D);WOO=JSON.parse(next.WOO);
+  render();updateUndoBtn();
+}
+function updateUndoBtn(){
+  var b=document.getElementById('undo-btn');
+  if(b){b.disabled=!_undoStack.length;b.style.opacity=_undoStack.length?'1':'0.4';b.title='Ångra ('+_undoStack.length+' steg)';}
+  var r=document.getElementById('redo-btn');
+  if(r){r.disabled=!_redoStack.length;r.style.opacity=_redoStack.length?'1':'0.4';}
+}
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!e.shiftKey){e.preventDefault();doUndo();}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();doRedo();}
+});
+
 // ── Spara till GitHub ─────────────────────────────────────────────────────
 async function saveState(){
+  pushUndo();
   // Spara alltid lokalt som backup
   try{localStorage.setItem('kbg_state',JSON.stringify({gallery:D,woo:WOO,mapping:MAPPING}));}catch(_){}
   if(!GH.token||!GH.owner){setSyncStatus('warn','⚠ Ingen token');return;}
@@ -439,19 +477,19 @@ function makeCard(card,si,ci){
   if(card.type==='image'){
     var url=card.manualUrl||('https://drive.google.com/file/d/'+card.drive_id+'/view');
     var imgSrc=card.manualUrl||(card.drive_id?'https://lh3.googleusercontent.com/d/'+card.drive_id+'=w300':'');
-    var a=el('a');a.className='img-link';a.href=url;a.target='_blank';a.rel='noopener';a.title='Öppna bild i ny flik';
+    var a=el('div');a.className='img-link';a.style.cursor='pointer';a.title='Klicka för att redigera';
+    a.onclick=function(e){e.preventDefault();openM(div,si,ci);};
     var img=el('img');img.src=imgSrc;
     img.alt=card.seoAlt||(card.cat+' – '+D[si].section+' cykel');
     img.title=card.seoAlt||(card.cat+' – '+D[si].section);
     img.onerror=function(){
-      this.parentNode.querySelector('.ovl').style.display='none';
       var ph=el('div');ph.className='ph';ph.innerHTML='<div class="plus">⚠</div><div>Ej tillgänglig</div>';
       ph.onclick=function(e){e.preventDefault();openM(div,si,ci);};
       this.parentNode.insertBefore(ph,this);this.remove();
     };
     var ovl=el('div');ovl.className='ovl';
     var openBtn=el('button');openBtn.textContent='↗ Öppna';openBtn.onclick=function(e){e.stopPropagation();window.open(url,'_blank');};
-    var repBtn=el('button');repBtn.textContent='↩ Byt';repBtn.onclick=function(e){e.preventDefault();e.stopPropagation();openM(div,si,ci);};
+    var repBtn=el('button');repBtn.textContent='✏ Redigera';repBtn.onclick=function(e){e.preventDefault();e.stopPropagation();openM(div,si,ci);};
     ovl.appendChild(openBtn);ovl.appendChild(repBtn);
     a.appendChild(img);a.appendChild(ovl);div.appendChild(a);
   } else {
