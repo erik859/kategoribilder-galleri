@@ -135,7 +135,10 @@ h1{color:#1F4E79;margin-bottom:4px;font-size:24px}
 </head>
 <body>
 
-<h1>Kategoribilder — Galleri</h1>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+<h1 style="margin-bottom:0">Kategoribilder — Galleri</h1>
+<button onclick="doExport()" style="padding:7px 16px;font-size:13px;cursor:pointer;border:1px solid #27AE60;background:#27AE60;color:white;border-radius:6px;font-weight:bold;white-space:nowrap">⬇ Exportera CSV</button>
+</div>
 <p class="meta">Klick på bild → öppnar i ny flik &bull; Hover på bild → byt bild &bull; Dubbelklicka på kategorinamn → redigera &bull; <strong>Dra &amp; släpp en bild direkt på ett kort</strong> för att tilldela</p>
 
 <div class="stats">
@@ -252,6 +255,8 @@ var GH = {
   token: localStorage.getItem('gh_token')||''
 };
 var D = [];
+var WOO_ORIG = null; // set after first load
+var MAPPING = [];
 var _dataSha = null;
 
 // ── Hjälp: base64-encode med Unicode-stöd ────────────────────────────────
@@ -278,7 +283,7 @@ async function loadFromGitHub(){
     var payload=await rawRes.json();
     // Hantera båda format: gammalt (array) och nytt ({gallery,woo})
     if(Array.isArray(payload)){D=payload;}
-    else{D=payload.gallery||[];if(payload.woo)WOO=payload.woo;}
+    else{D=payload.gallery||[];if(payload.woo)WOO=payload.woo;if(payload.mapping)MAPPING=payload.mapping;}
     // Hämta SHA om vi har token
     if(GH.token&&GH.owner){
       try{
@@ -300,11 +305,11 @@ async function loadFromGitHub(){
 // ── Spara till GitHub ─────────────────────────────────────────────────────
 async function saveState(){
   // Spara alltid lokalt som backup
-  try{localStorage.setItem('kbg_state',JSON.stringify({gallery:D,woo:WOO}));}catch(_){}
+  try{localStorage.setItem('kbg_state',JSON.stringify({gallery:D,woo:WOO,mapping:MAPPING}));}catch(_){}
   if(!GH.token||!GH.owner){setSyncStatus('warn','⚠ Ingen token');return;}
   setSyncStatus('saving','💾 Sparar...');
   try{
-    var content=strToB64(JSON.stringify({gallery:D,woo:WOO}));
+    var content=strToB64(JSON.stringify({gallery:D,woo:WOO,mapping:MAPPING}));
     var body={message:'Uppdatera data.json',content:content};
     if(_dataSha)body.sha=_dataSha;
     var res=await fetch('https://api.github.com/repos/'+GH.owner+'/'+GH.repo+'/contents/'+GH.file,
@@ -362,7 +367,7 @@ async function saveGhConfig(){
 
 var CE=null, CF=null, curF='all';
 // ── Load saved state from localStorage ───────────────────────────────────
-(function(){try{var s=localStorage.getItem('kbg_state');if(s){var p=JSON.parse(s);if(Array.isArray(p)){D=p;}else{D=p.gallery||[];if(p.woo)WOO=p.woo;}}}catch(e){}})();
+(function(){try{var s=localStorage.getItem('kbg_state');if(s){var p=JSON.parse(s);if(Array.isArray(p)){D=p;}else{D=p.gallery||[];if(p.woo)WOO=p.woo;if(p.mapping)MAPPING=p.mapping;}}}catch(e){}})();
 
 // ── Render ────────────────────────────────────────────────────────────────
 function render(){
@@ -657,7 +662,6 @@ function goSrch(){
 
 // ── Export CSV ────────────────────────────────────────────────────────────
 function getWooPath(catName, sectName){
-  // Hitta WOO-path för en galleri-kategori
   var name=catName.toLowerCase().trim();
   var sect=sectName.toLowerCase().trim();
   for(var i=0;i<WOO.length;i++){
@@ -665,12 +669,21 @@ function getWooPath(catName, sectName){
     if(r[2]&&r[2].toLowerCase().trim()===name)return {l1:r[0],l2:r[1],l3:r[2]};
     if(r[1]&&r[1].toLowerCase().trim()===sect&&r[2]&&r[2].toLowerCase().trim()===name)return {l1:r[0],l2:r[1],l3:r[2]};
   }
-  // Fallback: match on section name as L2
   for(var i=0;i<WOO.length;i++){
     var r=WOO[i];
     if(r[1]&&r[1].toLowerCase().trim()===sect)return {l1:r[0],l2:r[1],l3:catName};
   }
   return {l1:'',l2:sectName,l3:catName};
+}
+
+function getMappingRow(wc3Name){
+  if(!wc3Name)return null;
+  var n=wc3Name.toLowerCase().trim();
+  for(var i=0;i<MAPPING.length;i++){
+    var m=MAPPING[i];
+    if(m.wc_cat_name_3&&m.wc_cat_name_3.toLowerCase().trim()===n)return m;
+  }
+  return null;
 }
 
 function doExport(){
@@ -723,12 +736,18 @@ function csvToggleFilter(f){
 
 function closeCsvModal(el){var m=document.getElementById('csv-modal');if(m)m.remove();}
 function csvDoExport(){var btn=document.getElementById('csv-export-btn');
-  var rows=[['Woo L1 (Huvudkategori)','Woo L2 (Underkategori)','Woo L3 (Kategori)','Galleri-sektion','Galleri-kategori','Huvudkort','Status','Har bild','Drive ID','Bildnamn']];
+  var rows=[['id','bidex_name','bidex_code','dst_name','dst_code','wc_cat_name_1','wc_cat_code_1','wc_cat_name_2','wc_cat_code_2','wc_cat_name_3','wc_cat_code_3','galleri_sektion','galleri_kategori','huvudkort','status','har_bild','drive_id','bildnamn']];
   document.querySelectorAll('#csv-sel-list input[data-type=cat]:checked').forEach(function(cb){
     var si=parseInt(cb.dataset.si),ci=parseInt(cb.dataset.ci);
     var s=D[si],c=s&&s.cards[ci];if(!c)return;
     var wp=getWooPath(c.cat,s.section);
-    rows.push([wp.l1,wp.l2,wp.l3,s.section,c.cat,c.is_header?'Ja':'',c.type==='image'?'Har bild':'Saknar bild',c.type==='image'?'Ja':'Nej',c.drive_id||'',c.fn||'']);
+    var mr=getMappingRow(wp.l3)||getMappingRow(c.cat)||{};
+    var rowId=s.section.replace(/\s+/g,'_')+'__'+c.cat.replace(/\s+/g,'_');
+    rows.push([rowId,mr.bidex_name||'',mr.bidex_code||'',mr.dst_name||'',mr.dst_code||'',
+               mr.wc_cat_name_1||wp.l1,mr.wc_cat_code_1||'',mr.wc_cat_name_2||wp.l2,mr.wc_cat_code_2||'',
+               mr.wc_cat_name_3||wp.l3,mr.wc_cat_code_3||'',
+               s.section,c.cat,c.is_header?'Ja':'',c.type==='image'?'Har bild':'Saknar bild',
+               c.type==='image'?'Ja':'Nej',c.drive_id||'',c.fn||'']);
   });
   var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
   var a=document.createElement('a');
@@ -744,7 +763,7 @@ function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(
 var curView = 'gallery';
 function switchView(v){
   curView=v;
-  document.getElementById('gallery-view').style.display=(v==='gallery')?'':'none';
+  document.getElementById('gallery-view').style.display=(v==='gallery')?'block':'none';
   document.getElementById('webshop-view').style.display=(v==='webshop')?'block':'none';
   document.getElementById('vt-gallery').className='view-tab'+(v==='gallery'?' active':'');
   document.getElementById('vt-webshop').className='view-tab'+(v==='webshop'?' active':'');
@@ -881,13 +900,23 @@ function wooAddL2(l1){
 }
 
 function makeEditable(el, oldVal, onSave){
+  if(el.querySelector('input'))return;
   var inp=document.createElement('input');
   inp.value=oldVal;
-  inp.style.cssText='font-size:inherit;font-weight:inherit;color:inherit;border:none;border-bottom:2px solid #2E75B6;background:transparent;font-family:Arial;outline:none;width:'+(oldVal.length*9+40)+'px;max-width:300px';
+  inp.style.cssText='font-size:inherit;font-weight:inherit;color:inherit;border:none;border-bottom:2px solid #2E75B6;background:transparent;font-family:Arial;outline:none;min-width:80px;width:'+(Math.max(oldVal.length,8)*9)+'px;max-width:280px';
   el.innerHTML='';el.appendChild(inp);inp.focus();inp.select();
   function commit(){var v=inp.value.trim()||oldVal;el.innerHTML='';el.appendChild(document.createTextNode(v));if(v!==oldVal)onSave(v);}
   inp.onblur=commit;
+  inp.onclick=function(e){e.stopPropagation();};
   inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();inp.blur();}if(e.key==='Escape'){inp.value=oldVal;inp.blur();}};
+}
+
+function makeEditBtn(label, onClick){
+  var btn=document.createElement('button');
+  btn.textContent=label;
+  btn.style.cssText='font-size:10px;padding:1px 5px;border:1px solid #2E75B6;color:#2E75B6;background:white;border-radius:3px;cursor:pointer;opacity:0;transition:opacity .15s;flex-shrink:0';
+  btn.onclick=function(e){e.stopPropagation();onClick();};
+  return btn;
 }
 
 function renderWS(){
@@ -904,17 +933,16 @@ function renderWS(){
     var pct=tot?Math.round(has/tot*100):0;
     var l1hdr=document.createElement('div');l1hdr.className='ws-l1-hdr';
     var chevEl=document.createElement('span');chevEl.className='ws-chevron';chevEl.innerHTML='&#9654;';
-    var nameEl=document.createElement('span');nameEl.style.flex='1';nameEl.style.cursor='text';
-    nameEl.textContent=l1;
-    nameEl.ondblclick=function(e){e.stopPropagation();(function(l1c){makeEditable(nameEl,l1c,function(nv){wooRenameL1(l1c,nv);renderWS();});})(l1);};
+    var nameEl=document.createElement('span');nameEl.style.flex='1';nameEl.textContent=l1;
+    var editL1Btn=makeEditBtn('✏',function(){(function(l1c){makeEditable(nameEl,l1c,function(nv){wooRenameL1(l1c,nv);renderWS();});})(l1);});
     var statsEl=document.createElement('span');statsEl.style.cssText='font-size:11px;color:#666;font-weight:normal';statsEl.textContent=has+'/'+tot+' bilder  ';
     var pctEl=document.createElement('span');pctEl.style.cssText='font-size:11px;background:'+(pct>=80?'#d4edda':pct>=40?'#fff3cd':'#f8d7da')+';color:'+(pct>=80?'#155724':pct>=40?'#856404':'#721c24')+';padding:1px 8px;border-radius:10px';pctEl.textContent=pct+'%';
     var addL2Btn=document.createElement('button');
     addL2Btn.textContent='＋ Lägg till';addL2Btn.style.cssText='font-size:10px;padding:1px 7px;border:1px solid #27AE60;color:#27AE60;background:white;border-radius:4px;cursor:pointer;margin-left:6px;opacity:0;transition:opacity .15s';
     (function(l1c){addL2Btn.onclick=function(e){e.stopPropagation();wooAddL2(l1c);};})(l1);
-    l1hdr.appendChild(chevEl);l1hdr.appendChild(nameEl);l1hdr.appendChild(statsEl);l1hdr.appendChild(pctEl);l1hdr.appendChild(addL2Btn);
-    l1hdr.onmouseenter=function(){addL2Btn.style.opacity='1';};
-    l1hdr.onmouseleave=function(){addL2Btn.style.opacity='0';};
+    l1hdr.appendChild(chevEl);l1hdr.appendChild(nameEl);l1hdr.appendChild(editL1Btn);l1hdr.appendChild(statsEl);l1hdr.appendChild(pctEl);l1hdr.appendChild(addL2Btn);
+    l1hdr.onmouseenter=function(){addL2Btn.style.opacity='1';editL1Btn.style.opacity='1';};
+    l1hdr.onmouseleave=function(){addL2Btn.style.opacity='0';editL1Btn.style.opacity='0';};
     l1hdr.onclick=function(e){
       if(e.target===addL2Btn||e.target===nameEl||e.target.tagName==='INPUT')return;
       var b=document.getElementById(l1id);b.classList.toggle('open');l1hdr.classList.toggle('open');
@@ -931,10 +959,8 @@ function renderWS(){
       var imgEl=document.createElement('span');
       if(l2img){var iEl=document.createElement('img');iEl.src=l2img;iEl.style.cssText='width:20px;height:20px;object-fit:cover;border-radius:3px;vertical-align:middle';imgEl.appendChild(iEl);}
       else{imgEl.style.cssText='display:inline-block;width:20px;height:20px;background:#f0f0f0;border-radius:3px;vertical-align:middle';}
-      var l2nameEl=document.createElement('span');l2nameEl.style.cssText='margin-left:4px;cursor:text;flex:1';l2nameEl.textContent=l2;
-      (function(l1c,l2c){
-        l2nameEl.ondblclick=function(e){e.stopPropagation();makeEditable(l2nameEl,l2c,function(nv){wooRenameL2(l2c,nv);renderWS();});};
-      })(l1,l2);
+      var l2nameEl=document.createElement('span');l2nameEl.style.cssText='margin-left:4px;flex:1';l2nameEl.textContent=l2;
+      var editL2Btn=makeEditBtn('✏',(function(l1c,l2c){return function(){makeEditable(l2nameEl,l2c,function(nv){wooRenameL2(l2c,nv);renderWS();});};})(l1,l2));
       var cntEl=document.createElement('span');cntEl.style.cssText='margin-left:auto;font-size:10px;color:#aaa';cntEl.textContent=cats.length;
       var actBtns=document.createElement('span');actBtns.style.cssText='display:flex;gap:3px;opacity:0;transition:opacity .15s;margin-left:4px';
       var addBtn=document.createElement('button');addBtn.textContent='＋';addBtn.title='Lägg till kategori';addBtn.style.cssText='font-size:10px;padding:1px 5px;border:1px solid #27AE60;color:#27AE60;background:white;border-radius:3px;cursor:pointer';
@@ -943,10 +969,10 @@ function renderWS(){
         addBtn.onclick=function(e){e.stopPropagation();wooAddL3(l1c,l2c);};
         delBtn2.onclick=function(e){e.stopPropagation();wooDeleteL2(l1c,l2c);};
       })(l1,l2);
-      actBtns.appendChild(addBtn);actBtns.appendChild(delBtn2);
+      actBtns.appendChild(editL2Btn);actBtns.appendChild(addBtn);actBtns.appendChild(delBtn2);
       l2hdr.appendChild(chevEl2);l2hdr.appendChild(imgEl);l2hdr.appendChild(l2nameEl);l2hdr.appendChild(cntEl);l2hdr.appendChild(actBtns);
-      l2hdr.onmouseenter=function(){actBtns.style.opacity='1';};
-      l2hdr.onmouseleave=function(){actBtns.style.opacity='0';};
+      l2hdr.onmouseenter=function(){actBtns.style.opacity='1';editL2Btn.style.opacity='1';};
+      l2hdr.onmouseleave=function(){actBtns.style.opacity='0';editL2Btn.style.opacity='0';};
       if(cats.length){
         l2hdr.onclick=function(e){
           if(e.target===addBtn||e.target===delBtn2||e.target===l2nameEl||e.target.tagName==='INPUT')return;
@@ -965,14 +991,13 @@ function renderWS(){
           catEl.style.position='relative';
           if(img){var iEl2=document.createElement('img');iEl2.src=img;iEl2.style.cssText='width:32px;height:32px;object-fit:cover;border-radius:4px;flex-shrink:0';catEl.appendChild(iEl2);}
           else{var ph=document.createElement('div');ph.className='ws-ph';ph.textContent='?';catEl.appendChild(ph);}
-          var nameSpan=document.createElement('span');nameSpan.textContent=l3;nameSpan.style.cursor='text';
-          (function(l1c,l2c,l3c){
-            nameSpan.ondblclick=function(e){e.stopPropagation();makeEditable(nameSpan,l3c,function(nv){wooRenameL3(l3c,nv);renderWS();render();});};
-          })(l1,l2,l3);
-          catEl.appendChild(nameSpan);
+          var nameSpan=document.createElement('span');nameSpan.textContent=l3;
+          var editL3Btn=makeEditBtn('✏',(function(l3c){return function(){makeEditable(nameSpan,l3c,function(nv){wooRenameL3(l3c,nv);renderWS();render();});};})(l3));
+          editL3Btn.style.position='static';editL3Btn.style.flexShrink='0';
+          catEl.appendChild(nameSpan);catEl.appendChild(editL3Btn);
           var delL3=document.createElement('button');delL3.textContent='✕';delL3.style.cssText='position:absolute;top:2px;right:2px;font-size:9px;padding:0 3px;border:1px solid #e8a0a0;color:#c44;background:white;border-radius:3px;cursor:pointer;opacity:0;transition:opacity .15s';
           (function(l1c,l2c,l3c){delL3.onclick=function(e){e.stopPropagation();wooDeleteL3(l1c,l2c,l3c);};})(l1,l2,l3);
-          catEl.onmouseenter=function(){delL3.style.opacity='1';};catEl.onmouseleave=function(){delL3.style.opacity='0';};
+          catEl.onmouseenter=function(){delL3.style.opacity='1';editL3Btn.style.opacity='1';};catEl.onmouseleave=function(){delL3.style.opacity='0';editL3Btn.style.opacity='0';};
           catEl.appendChild(delL3);
           l3list.appendChild(catEl);
         });
