@@ -676,12 +676,41 @@ function getWooPath(catName, sectName){
   return {l1:'',l2:sectName,l3:catName};
 }
 
-function getMappingRow(wc3Name){
-  if(!wc3Name)return null;
-  var n=wc3Name.toLowerCase().trim();
+function getMappingRow(catName, sectName){
+  if(!catName&&!sectName)return null;
+  var cn=(catName||'').toLowerCase().trim();
+  var sn=(sectName||'').toLowerCase().trim();
+  // 1. Exact match: wc_cat_name_3 == catName
   for(var i=0;i<MAPPING.length;i++){
     var m=MAPPING[i];
-    if(m.wc_cat_name_3&&m.wc_cat_name_3.toLowerCase().trim()===n)return m;
+    if(m.wc_cat_name_3&&m.wc_cat_name_3.toLowerCase().trim()===cn)return m;
+  }
+  // 2. Match: section == wc_cat_name_2 AND cat == wc_cat_name_3
+  if(sn){
+    for(var i=0;i<MAPPING.length;i++){
+      var m=MAPPING[i];
+      if(m.wc_cat_name_2&&m.wc_cat_name_2.toLowerCase().trim()===sn&&
+         m.wc_cat_name_3&&m.wc_cat_name_3.toLowerCase().trim()===cn)return m;
+    }
+  }
+  // 3. catName matches wc_cat_name_2 (L2-level category)
+  for(var i=0;i<MAPPING.length;i++){
+    var m=MAPPING[i];
+    if(m.wc_cat_name_2&&m.wc_cat_name_2.toLowerCase().trim()===cn&&
+       (!m.wc_cat_name_3||m.wc_cat_name_3===''))return m;
+  }
+  // 4. sectName matches wc_cat_name_2 (use parent L2 codes as fallback)
+  if(sn){
+    for(var i=0;i<MAPPING.length;i++){
+      var m=MAPPING[i];
+      if(m.wc_cat_name_2&&m.wc_cat_name_2.toLowerCase().trim()===sn&&
+         (!m.wc_cat_name_3||m.wc_cat_name_3===''))return m;
+    }
+  }
+  // 5. Partial match on catName in wc_cat_name_3
+  for(var i=0;i<MAPPING.length;i++){
+    var m=MAPPING[i];
+    if(m.wc_cat_name_3&&cn.length>4&&m.wc_cat_name_3.toLowerCase().indexOf(cn)>=0)return m;
   }
   return null;
 }
@@ -741,7 +770,7 @@ function csvDoExport(){var btn=document.getElementById('csv-export-btn');
     var si=parseInt(cb.dataset.si),ci=parseInt(cb.dataset.ci);
     var s=D[si],c=s&&s.cards[ci];if(!c)return;
     var wp=getWooPath(c.cat,s.section);
-    var mr=getMappingRow(wp.l3)||getMappingRow(c.cat)||{};
+    var mr=getMappingRow(c.cat,s.section)||getMappingRow(wp.l3,wp.l2)||{};
     var rowId=s.section.replace(/\s+/g,'_')+'__'+c.cat.replace(/\s+/g,'_');
     rows.push([rowId,mr.bidex_name||'',mr.bidex_code||'',mr.dst_name||'',mr.dst_code||'',
                mr.wc_cat_name_1||wp.l1,mr.wc_cat_code_1||'',mr.wc_cat_name_2||wp.l2,mr.wc_cat_code_2||'',
