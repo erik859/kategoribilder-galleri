@@ -275,8 +275,11 @@ async function loadFromGitHub(){
     var rawRes=await fetch('https://erik859.github.io/kategoribilder-galleri/data.json?t='+Date.now(),
       {cache:'no-store'});
     if(!rawRes.ok)throw new Error('HTTP '+rawRes.status);
-    D=await rawRes.json();
-    // Hämta SHA separat om vi har token (behövs för att spara)
+    var payload=await rawRes.json();
+    // Hantera båda format: gammalt (array) och nytt ({gallery,woo})
+    if(Array.isArray(payload)){D=payload;}
+    else{D=payload.gallery||[];if(payload.woo)WOO=payload.woo;}
+    // Hämta SHA om vi har token
     if(GH.token&&GH.owner){
       try{
         var metaRes=await fetch('https://api.github.com/repos/'+GH.owner+'/'+GH.repo+'/contents/'+GH.file,
@@ -297,11 +300,11 @@ async function loadFromGitHub(){
 // ── Spara till GitHub ─────────────────────────────────────────────────────
 async function saveState(){
   // Spara alltid lokalt som backup
-  try{localStorage.setItem('kbg_state',JSON.stringify(D));}catch(_){}
+  try{localStorage.setItem('kbg_state',JSON.stringify({gallery:D,woo:WOO}));}catch(_){}
   if(!GH.token||!GH.owner){setSyncStatus('warn','⚠ Ingen token');return;}
   setSyncStatus('saving','💾 Sparar...');
   try{
-    var content=strToB64(JSON.stringify(D));
+    var content=strToB64(JSON.stringify({gallery:D,woo:WOO}));
     var body={message:'Uppdatera data.json',content:content};
     if(_dataSha)body.sha=_dataSha;
     var res=await fetch('https://api.github.com/repos/'+GH.owner+'/'+GH.repo+'/contents/'+GH.file,
@@ -359,7 +362,7 @@ async function saveGhConfig(){
 
 var CE=null, CF=null, curF='all';
 // ── Load saved state from localStorage ───────────────────────────────────
-(function(){try{var s=localStorage.getItem('kbg_state');if(s){D=JSON.parse(s);}}catch(e){}})();
+(function(){try{var s=localStorage.getItem('kbg_state');if(s){var p=JSON.parse(s);if(Array.isArray(p)){D=p;}else{D=p.gallery||[];if(p.woo)WOO=p.woo;}}}catch(e){}})();
 
 // ── Render ────────────────────────────────────────────────────────────────
 function render(){
@@ -653,18 +656,85 @@ function goSrch(){
 }
 
 // ── Export CSV ────────────────────────────────────────────────────────────
+function getWooPath(catName, sectName){
+  // Hitta WOO-path för en galleri-kategori
+  var name=catName.toLowerCase().trim();
+  var sect=sectName.toLowerCase().trim();
+  for(var i=0;i<WOO.length;i++){
+    var r=WOO[i];
+    if(r[2]&&r[2].toLowerCase().trim()===name)return {l1:r[0],l2:r[1],l3:r[2]};
+    if(r[1]&&r[1].toLowerCase().trim()===sect&&r[2]&&r[2].toLowerCase().trim()===name)return {l1:r[0],l2:r[1],l3:r[2]};
+  }
+  // Fallback: match on section name as L2
+  for(var i=0;i<WOO.length;i++){
+    var r=WOO[i];
+    if(r[1]&&r[1].toLowerCase().trim()===sect)return {l1:r[0],l2:r[1],l3:catName};
+  }
+  return {l1:'',l2:sectName,l3:catName};
+}
+
 function doExport(){
-  var rows=[['Sektion','Kategori','Status','Drive ID','Bildnamn','Huvudkategori']];
-  D.forEach(function(s){
-    s.cards.forEach(function(c){
-      rows.push([s.section,c.cat,c.type==='image'?'Har bild':'Saknar bild',
-                 c.drive_id||'',c.fn||'',c.is_header?'Ja':'']);
+  // Bygg urvalslista
+  var modal=document.createElement('div');modal.id='csv-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center';
+  var box=document.createElement('div');
+  box.style.cssText='background:white;border-radius:12px;padding:22px;width:560px;max-width:96vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.28)';
+  box.innerHTML='<h3 style="color:#1F4E79;font-size:15px;margin-bottom:12px">⬇ Exportera CSV — välj vad som ska inkluderas</h3>'+
+    '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'+
+    '<button onclick="csvToggleAll(true)" style="font-size:11px;padding:3px 10px;border:1px solid #ddd;border-radius:4px;background:white;cursor:pointer">Markera alla</button>'+
+    '<button onclick="csvToggleAll(false)" style="font-size:11px;padding:3px 10px;border:1px solid #ddd;border-radius:4px;background:white;cursor:pointer">Avmarkera alla</button>'+
+    '<button onclick="csvToggleFilter(\'has\')" style="font-size:11px;padding:3px 10px;border:1px solid #27AE60;color:#27AE60;border-radius:4px;background:white;cursor:pointer">Bara med bild</button>'+
+    '<button onclick="csvToggleFilter(\'miss\')" style="font-size:11px;padding:3px 10px;border:1px solid #f5c07a;color:#856404;border-radius:4px;background:white;cursor:pointer">Bara utan bild</button>'+
+    '</div>'+
+    '<div id="csv-sel-list" style="margin-bottom:14px"></div>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end">'+
+    '<button onclick="closeCsvModal()" style="padding:6px 14px;font-size:12px;border:1px solid #ddd;border-radius:6px;background:white;cursor:pointer;color:#888">Avbryt</button>'+
+    '<button id="csv-export-btn" onclick="csvDoExport()" style="padding:6px 16px;font-size:12px;background:#27AE60;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold">⬇ Exportera</button>'+
+    '</div>';
+  box.dataset.modal='1';modal.appendChild(box);document.body.appendChild(modal);
+  modal.onclick=function(e){if(e.target===modal)closeCsvModal(modal);};
+  // Bygg urvalslista
+  var list=document.getElementById('csv-sel-list');
+  D.forEach(function(s,si){
+    var sh=document.createElement('div');sh.style.cssText='font-weight:bold;font-size:12px;color:#1F4E79;padding:6px 0 3px;border-bottom:1px solid #eee;margin-bottom:4px;display:flex;align-items:center;gap:6px';
+    var sCb=document.createElement('input');sCb.type='checkbox';sCb.checked=true;sCb.dataset.si=si;sCb.dataset.type='sect';
+    sCb.onchange=function(){var checked=this.checked;document.querySelectorAll('[data-si="'+si+'"][data-type="cat"]').forEach(function(c){c.checked=checked;});};
+    sh.appendChild(sCb);sh.appendChild(document.createTextNode(s.section+' ('+s.cards.length+' kategorier)'));
+    list.appendChild(sh);
+    s.cards.forEach(function(c,ci){
+      var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:6px;padding:2px 0 2px 18px;font-size:11px;color:'+(c.type==='image'?'#333':'#aaa');
+      var cb=document.createElement('input');cb.type='checkbox';cb.checked=true;cb.dataset.si=si;cb.dataset.ci=ci;cb.dataset.type='cat';
+      row.appendChild(cb);
+      row.appendChild(document.createTextNode(c.cat+(c.type==='image'?' ✓':' ⚠')));
+      list.appendChild(row);
     });
+  });
+}
+
+function csvToggleAll(v){document.querySelectorAll('#csv-sel-list input[type=checkbox]').forEach(function(c){c.checked=v;});}
+function csvToggleFilter(f){
+  document.querySelectorAll('#csv-sel-list input[data-type=cat]').forEach(function(cb){
+    var si=parseInt(cb.dataset.si),ci=parseInt(cb.dataset.ci);
+    var card=D[si]&&D[si].cards[ci];
+    if(!card)return;
+    cb.checked=(f==='has'&&card.type==='image')||(f==='miss'&&card.type!=='image');
+  });
+}
+
+function closeCsvModal(el){var m=document.getElementById('csv-modal');if(m)m.remove();}
+function csvDoExport(){var btn=document.getElementById('csv-export-btn');
+  var rows=[['Woo L1 (Huvudkategori)','Woo L2 (Underkategori)','Woo L3 (Kategori)','Galleri-sektion','Galleri-kategori','Huvudkort','Status','Har bild','Drive ID','Bildnamn']];
+  document.querySelectorAll('#csv-sel-list input[data-type=cat]:checked').forEach(function(cb){
+    var si=parseInt(cb.dataset.si),ci=parseInt(cb.dataset.ci);
+    var s=D[si],c=s&&s.cards[ci];if(!c)return;
+    var wp=getWooPath(c.cat,s.section);
+    rows.push([wp.l1,wp.l2,wp.l3,s.section,c.cat,c.is_header?'Ja':'',c.type==='image'?'Har bild':'Saknar bild',c.type==='image'?'Ja':'Nej',c.drive_id||'',c.fn||'']);
   });
   var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
   var a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
   a.download='kategoribilder.csv';a.click();
+  closeCsvModal(btn);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -729,26 +799,99 @@ function wsFilter(f){
   renderWS();
 }
 
-function findGalleryImg(catName){
+function findGalleryCard(catName){
+  var name=catName.toLowerCase().trim();
   for(var si=0;si<D.length;si++){
     for(var ci=0;ci<D[si].cards.length;ci++){
       var c=D[si].cards[ci];
-      if(c.type==='image'&&c.cat&&c.cat.toLowerCase().trim()===catName.toLowerCase().trim()){
-        return c.manualUrl||(c.drive_id?'https://lh3.googleusercontent.com/d/'+c.drive_id+'=w60':'');
-      }
+      if(c.cat&&c.cat.toLowerCase().trim()===name)return c;
     }
   }
   return null;
 }
 
-function renderWS(){
+function findGalleryImg(catName){
+  var c=findGalleryCard(catName);
+  if(!c||c.type!=='image')return null;
+  return c.manualUrl||(c.drive_id?'https://lh3.googleusercontent.com/d/'+c.drive_id+'=w60':'');
+}
+
+// Build WOO tree from flat array
+function buildWooTree(){
   var tree={};
   WOO.forEach(function(row){
     var l1=row[0],l2=row[1],l3=row[2];
+    if(!l1)return;
     if(!tree[l1])tree[l1]={};
     if(!tree[l1][l2])tree[l1][l2]=[];
     if(l3&&tree[l1][l2].indexOf(l3)<0)tree[l1][l2].push(l3);
   });
+  return tree;
+}
+
+// Save WOO back to flat array
+function treeToWoo(tree){
+  var arr=[];
+  Object.keys(tree).forEach(function(l1){
+    Object.keys(tree[l1]).forEach(function(l2){
+      if(!tree[l1][l2].length){arr.push([l1,l2,'']);}
+      else{tree[l1][l2].forEach(function(l3){arr.push([l1,l2,l3]);});}
+    });
+  });
+  return arr;
+}
+
+function wooRenameL3(oldName, newName){
+  // Rename in WOO
+  WOO=WOO.map(function(r){return r[2]===oldName?[r[0],r[1],newName]:r;});
+  // Rename matching gallery cards
+  D.forEach(function(s){s.cards.forEach(function(c){if(c.cat===oldName)c.cat=newName;});});
+  saveState();
+}
+function wooRenameL2(oldName, newName){
+  WOO=WOO.map(function(r){return r[1]===oldName?[r[0],newName,r[2]]:r;});
+  D.forEach(function(s){if(s.section===oldName)s.section=newName;});
+  saveState();
+}
+function wooRenameL1(oldName, newName){
+  WOO=WOO.map(function(r){return r[0]===oldName?[newName,r[1],r[2]]:r;});
+  saveState();
+}
+function wooDeleteL3(l1,l2,l3){
+  if(!confirm('Ta bort "'+l3+'" från '+l2+'?'))return;
+  WOO=WOO.filter(function(r){return!(r[0]===l1&&r[1]===l2&&r[2]===l3);});
+  renderWS();saveState();
+}
+function wooDeleteL2(l1,l2){
+  if(!confirm('Ta bort hela "'+l2+'" och alla dess kategorier?'))return;
+  WOO=WOO.filter(function(r){return!(r[0]===l1&&r[1]===l2);});
+  renderWS();saveState();
+}
+function wooAddL3(l1,l2){
+  var name=prompt('Namn på ny kategori under '+l2+':');
+  if(!name||!name.trim())return;
+  WOO.push([l1,l2,name.trim()]);
+  renderWS();saveState();
+}
+function wooAddL2(l1){
+  var name=prompt('Namn på ny underkategori under '+l1+':');
+  if(!name||!name.trim())return;
+  WOO.push([l1,name.trim(),'']);
+  renderWS();saveState();
+}
+
+function makeEditable(el, oldVal, onSave){
+  var inp=document.createElement('input');
+  inp.value=oldVal;
+  inp.style.cssText='font-size:inherit;font-weight:inherit;color:inherit;border:none;border-bottom:2px solid #2E75B6;background:transparent;font-family:Arial;outline:none;width:'+(oldVal.length*9+40)+'px;max-width:300px';
+  el.innerHTML='';el.appendChild(inp);inp.focus();inp.select();
+  function commit(){var v=inp.value.trim()||oldVal;el.innerHTML='';el.appendChild(document.createTextNode(v));if(v!==oldVal)onSave(v);}
+  inp.onblur=commit;
+  inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();inp.blur();}if(e.key==='Escape'){inp.value=oldVal;inp.blur();}};
+}
+
+function renderWS(){
+  var tree=buildWooTree();
   var root=document.getElementById('ws-tree');
   root.innerHTML='';
   var l1keys=Object.keys(tree);
@@ -756,18 +899,25 @@ function renderWS(){
     var l2keys=Object.keys(tree[l1]);
     var l1div=document.createElement('div');l1div.className='ws-l1';
     var l1id='wsl1_'+l1i;
-    // Count stats
     var tot=0,has=0;
     l2keys.forEach(function(l2){tree[l1][l2].forEach(function(l3){tot++;if(findGalleryImg(l3)||findGalleryImg(l2))has++;});});
     var pct=tot?Math.round(has/tot*100):0;
     var l1hdr=document.createElement('div');l1hdr.className='ws-l1-hdr';
-    l1hdr.innerHTML='<span class="ws-chevron">&#9654;</span><span style="flex:1">'+l1+'</span>'+
-      '<span style="font-size:11px;color:#666;font-weight:normal">'+has+'/'+tot+' bilder &nbsp;</span>'+
-      '<span style="font-size:11px;background:'+(pct>=80?'#d4edda':pct>=40?'#fff3cd':'#f8d7da')+';color:'+(pct>=80?'#155724':pct>=40?'#856404':'#721c24')+';padding:1px 8px;border-radius:10px">'+pct+'%</span>';
-    l1hdr.onclick=function(){
-      var b=document.getElementById(l1id);
-      b.classList.toggle('open');
-      l1hdr.classList.toggle('open');
+    var chevEl=document.createElement('span');chevEl.className='ws-chevron';chevEl.innerHTML='&#9654;';
+    var nameEl=document.createElement('span');nameEl.style.flex='1';nameEl.style.cursor='text';
+    nameEl.textContent=l1;
+    nameEl.ondblclick=function(e){e.stopPropagation();(function(l1c){makeEditable(nameEl,l1c,function(nv){wooRenameL1(l1c,nv);renderWS();});})(l1);};
+    var statsEl=document.createElement('span');statsEl.style.cssText='font-size:11px;color:#666;font-weight:normal';statsEl.textContent=has+'/'+tot+' bilder  ';
+    var pctEl=document.createElement('span');pctEl.style.cssText='font-size:11px;background:'+(pct>=80?'#d4edda':pct>=40?'#fff3cd':'#f8d7da')+';color:'+(pct>=80?'#155724':pct>=40?'#856404':'#721c24')+';padding:1px 8px;border-radius:10px';pctEl.textContent=pct+'%';
+    var addL2Btn=document.createElement('button');
+    addL2Btn.textContent='＋ Lägg till';addL2Btn.style.cssText='font-size:10px;padding:1px 7px;border:1px solid #27AE60;color:#27AE60;background:white;border-radius:4px;cursor:pointer;margin-left:6px;opacity:0;transition:opacity .15s';
+    (function(l1c){addL2Btn.onclick=function(e){e.stopPropagation();wooAddL2(l1c);};})(l1);
+    l1hdr.appendChild(chevEl);l1hdr.appendChild(nameEl);l1hdr.appendChild(statsEl);l1hdr.appendChild(pctEl);l1hdr.appendChild(addL2Btn);
+    l1hdr.onmouseenter=function(){addL2Btn.style.opacity='1';};
+    l1hdr.onmouseleave=function(){addL2Btn.style.opacity='0';};
+    l1hdr.onclick=function(e){
+      if(e.target===addL2Btn||e.target===nameEl||e.target.tagName==='INPUT')return;
+      var b=document.getElementById(l1id);b.classList.toggle('open');l1hdr.classList.toggle('open');
     };
     l1div.appendChild(l1hdr);
     var l1body=document.createElement('div');l1body.className='ws-l1-body';l1body.id=l1id;
@@ -776,17 +926,31 @@ function renderWS(){
       var l2div=document.createElement('div');l2div.className='ws-l2';
       var l2id='wsl2_'+l1i+'_'+l2i;
       var l2img=findGalleryImg(l2);
-      var l2has=cats.filter(function(c){return findGalleryImg(c)||findGalleryImg(l2);}).length;
-      var l2hdr=document.createElement('div');l2hdr.className='ws-l2-hdr';
-      var imgEl=l2img?'<img src="'+l2img+'" style="width:20px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0">'
-        :'<span style="width:20px;height:20px;background:#f0f0f0;border-radius:3px;display:inline-block;vertical-align:middle"></span>';
-      l2hdr.innerHTML=(cats.length?'<span class="ws-chevron">&#9654;</span>':'')+imgEl+'<span style="margin-left:4px">'+l2+'</span>'+
-        '<span style="margin-left:auto;font-size:10px;color:#aaa">'+l2has+'/'+cats.length+'</span>';
+      var l2hdr=document.createElement('div');l2hdr.className='ws-l2-hdr';l2hdr.style.position='relative';
+      var chevEl2=document.createElement('span');chevEl2.className='ws-chevron';if(cats.length)chevEl2.innerHTML='&#9654;';
+      var imgEl=document.createElement('span');
+      if(l2img){var iEl=document.createElement('img');iEl.src=l2img;iEl.style.cssText='width:20px;height:20px;object-fit:cover;border-radius:3px;vertical-align:middle';imgEl.appendChild(iEl);}
+      else{imgEl.style.cssText='display:inline-block;width:20px;height:20px;background:#f0f0f0;border-radius:3px;vertical-align:middle';}
+      var l2nameEl=document.createElement('span');l2nameEl.style.cssText='margin-left:4px;cursor:text;flex:1';l2nameEl.textContent=l2;
+      (function(l1c,l2c){
+        l2nameEl.ondblclick=function(e){e.stopPropagation();makeEditable(l2nameEl,l2c,function(nv){wooRenameL2(l2c,nv);renderWS();});};
+      })(l1,l2);
+      var cntEl=document.createElement('span');cntEl.style.cssText='margin-left:auto;font-size:10px;color:#aaa';cntEl.textContent=cats.length;
+      var actBtns=document.createElement('span');actBtns.style.cssText='display:flex;gap:3px;opacity:0;transition:opacity .15s;margin-left:4px';
+      var addBtn=document.createElement('button');addBtn.textContent='＋';addBtn.title='Lägg till kategori';addBtn.style.cssText='font-size:10px;padding:1px 5px;border:1px solid #27AE60;color:#27AE60;background:white;border-radius:3px;cursor:pointer';
+      var delBtn2=document.createElement('button');delBtn2.textContent='✕';delBtn2.title='Ta bort underkategori';delBtn2.style.cssText='font-size:10px;padding:1px 5px;border:1px solid #e8a0a0;color:#c44;background:white;border-radius:3px;cursor:pointer';
+      (function(l1c,l2c){
+        addBtn.onclick=function(e){e.stopPropagation();wooAddL3(l1c,l2c);};
+        delBtn2.onclick=function(e){e.stopPropagation();wooDeleteL2(l1c,l2c);};
+      })(l1,l2);
+      actBtns.appendChild(addBtn);actBtns.appendChild(delBtn2);
+      l2hdr.appendChild(chevEl2);l2hdr.appendChild(imgEl);l2hdr.appendChild(l2nameEl);l2hdr.appendChild(cntEl);l2hdr.appendChild(actBtns);
+      l2hdr.onmouseenter=function(){actBtns.style.opacity='1';};
+      l2hdr.onmouseleave=function(){actBtns.style.opacity='0';};
       if(cats.length){
-        l2hdr.onclick=function(){
-          var b=document.getElementById(l2id);
-          b.classList.toggle('open');
-          l2hdr.classList.toggle('open');
+        l2hdr.onclick=function(e){
+          if(e.target===addBtn||e.target===delBtn2||e.target===l2nameEl||e.target.tagName==='INPUT')return;
+          var b=document.getElementById(l2id);b.classList.toggle('open');l2hdr.classList.toggle('open');
         };
       }
       l2div.appendChild(l2hdr);
@@ -798,8 +962,18 @@ function renderWS(){
           if(wsCurFilter==='has'&&!img)return;
           if(wsCurFilter==='miss'&&img)return;
           var catEl=document.createElement('div');catEl.className='ws-cat '+(img?'has':'miss');
-          if(img)catEl.innerHTML='<img src="'+img+'" style="width:32px;height:32px;object-fit:cover;border-radius:4px"><span>'+l3+'</span>';
-          else catEl.innerHTML='<div class="ws-ph">?</div><span style="color:#aaa">'+l3+'</span>';
+          catEl.style.position='relative';
+          if(img){var iEl2=document.createElement('img');iEl2.src=img;iEl2.style.cssText='width:32px;height:32px;object-fit:cover;border-radius:4px;flex-shrink:0';catEl.appendChild(iEl2);}
+          else{var ph=document.createElement('div');ph.className='ws-ph';ph.textContent='?';catEl.appendChild(ph);}
+          var nameSpan=document.createElement('span');nameSpan.textContent=l3;nameSpan.style.cursor='text';
+          (function(l1c,l2c,l3c){
+            nameSpan.ondblclick=function(e){e.stopPropagation();makeEditable(nameSpan,l3c,function(nv){wooRenameL3(l3c,nv);renderWS();render();});};
+          })(l1,l2,l3);
+          catEl.appendChild(nameSpan);
+          var delL3=document.createElement('button');delL3.textContent='✕';delL3.style.cssText='position:absolute;top:2px;right:2px;font-size:9px;padding:0 3px;border:1px solid #e8a0a0;color:#c44;background:white;border-radius:3px;cursor:pointer;opacity:0;transition:opacity .15s';
+          (function(l1c,l2c,l3c){delL3.onclick=function(e){e.stopPropagation();wooDeleteL3(l1c,l2c,l3c);};})(l1,l2,l3);
+          catEl.onmouseenter=function(){delL3.style.opacity='1';};catEl.onmouseleave=function(){delL3.style.opacity='0';};
+          catEl.appendChild(delL3);
           l3list.appendChild(catEl);
         });
         l2div.appendChild(l3list);
@@ -912,4 +1086,4 @@ window.addEventListener('drop', function(e){
 loadFromGitHub();
 </script>
 </body>
-</html>                                              
+</html>                                                          
