@@ -210,6 +210,15 @@ h1{color:#1F4E79;margin-bottom:4px;font-size:24px}
       <input id="malt" type="text" placeholder="t.ex. Bromsskivor till cyklar – Bromsar cykel"
              style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:11px;font-family:Arial;color:#444"/>
     </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Bildnamn — lämna tomt för att använda kategorinamnet automatiskt</label>
+      <input id="mfn" type="text" placeholder=""
+             style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:11px;font-family:Arial;color:#444"/>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Bildnamn (lämna tomt = kategorinamn automatiskt)</label>
+      <input id="mfn" type="text" placeholder="" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:11px;font-family:Arial;color:#444"/>
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button onclick="goSrch()" style="padding:7px 12px;font-size:12px;cursor:pointer;border:1px solid #2E75B6;color:#2E75B6;background:white;border-radius:6px">🔍 Sök Google Images</button>
       <button onclick="document.getElementById('lfi').click()" style="padding:7px 12px;font-size:12px;cursor:pointer;border:1px solid #27AE60;color:#27AE60;background:white;border-radius:6px">📁 Lokal fil</button>
@@ -457,7 +466,8 @@ function makeCard(card,si,ci){
       // Read file and assign directly without opening modal
       var r=new FileReader();
       r.onload=function(ev){
-        card.type='image';card.manualUrl=ev.target.result;card.fn=f.name;
+        card.type='image';card.manualUrl=ev.target.result;
+        if(!card.fnCustom){card.fn=catToFilename(card.cat);}
         if(!card.seoAlt)card.seoAlt=card.cat+' – '+D[si].section+' cykel';
         var newEl=makeCard(card,si,ci);
         div.parentNode.replaceChild(newEl,div);
@@ -660,6 +670,10 @@ function openM(cardEl,si,ci){
   else{mi.style.display='none';mi.src='';}
   var defaultAlt=card.cat+' – '+D[si].section+' cykel';
   document.getElementById('malt').value=card.seoAlt||defaultAlt;
+  document.getElementById('mfn').value=card.fnCustom?card.fn:'';
+  document.getElementById('mfn').placeholder=catToFilename(card.cat);
+  document.getElementById('mfn').value=card.fnCustom?card.fn:'';
+  document.getElementById('mfn').placeholder=catToFilename(card.cat);
   document.getElementById('modal').style.display='flex';
   setTimeout(function(){document.getElementById('mu').focus();},50);
 }
@@ -667,14 +681,22 @@ function closeM(){document.getElementById('modal').style.display='none';CE=null;
 
 function prevUrl(u){if(!u)return;var mi=document.getElementById('mi');mi.src=u;mi.style.display='block';}
 
+function catToFilename(cat){
+  // Konverterar kategorinamn till säkert filnamn
+  return cat.replace(/[\/\\:*?"<>|]/g,'-').replace(/\s+/g,'_').replace(/-+/g,'-').toLowerCase()+'.jpg';
+}
+
 function saveImg(){
   var u=document.getElementById('mu').value.trim();
   if(!u||!CF)return;
   var si=CF.si,ci=CF.ci,card=D[si].cards[ci];
-  card.type='image';card.manualUrl=u;card.fn='✓ Bild tillagd';
+  card.type='image';card.manualUrl=u;
+  // Bildnamn: använd manuellt namn om satt, annars kategorinamnet
+  var manualFn=document.getElementById('mfn').value.trim();
+  if(manualFn){card.fn=manualFn;card.fnCustom=true;}
+  else if(!card.fnCustom){card.fn=catToFilename(card.cat);}
   var altVal=document.getElementById('malt').value.trim();
   card.seoAlt=altVal||(card.cat+' – '+D[si].section+' cykel');
-  // Rebuild just this card
   var oldEl=CE;
   var newEl=makeCard(card,si,ci);
   oldEl.parentNode.replaceChild(newEl,oldEl);
@@ -1171,11 +1193,4 @@ window.addEventListener('dragover', function(e){e.preventDefault();});
 window.addEventListener('drop', function(e){
   e.preventDefault();  // Stop browser from opening dropped file
   _dragDepth=0;hideDragHint();
-  // If drop lands on window (not on a card), do nothing — card handlers handle it
-});
-
-// ── Init ──────────────────────────────────────────────────────────────────
-loadFromGitHub();
-</script>
-</body>
-</html>                                                          
+  // If drop lands on window (not on a card)
