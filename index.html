@@ -269,24 +269,22 @@ function setSyncStatus(state, txt){
 
 // ── Ladda från GitHub ─────────────────────────────────────────────────────
 async function loadFromGitHub(){
-  if(!GH.token||!GH.owner){showGhSetup();return;}
   setSyncStatus('loading','⏳ Laddar...');
   try{
-    var res=await fetch('https://api.github.com/repos/'+GH.owner+'/'+GH.repo+'/contents/'+GH.file,
-      {headers:{Authorization:'token '+GH.token,Accept:'application/vnd.github.v3+json'}});
-    if(res.status===404){
-      // data.json finns inte än – starta med tom D
-      setSyncStatus('warn','⚠ Ingen data på GitHub');D=[];render();return;
-    }
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    var meta=await res.json();
-    _dataSha=meta.sha;
-    // Hämta innehållet via raw-URL (ingen 1MB-begränsning)
-    var rawRes=await fetch('https://'+GH.owner+'.github.io/'+GH.repo+'/'+GH.file+'?t='+Date.now(),
+    // Hämta data via GitHub Pages – ingen token behövs för läsning
+    var rawRes=await fetch('https://erik859.github.io/kategoribilder-galleri/data.json?t='+Date.now(),
       {cache:'no-store'});
-    if(!rawRes.ok)throw new Error('Raw HTTP '+rawRes.status);
+    if(!rawRes.ok)throw new Error('HTTP '+rawRes.status);
     D=await rawRes.json();
-    setSyncStatus('ok','✓ Synkad');
+    // Hämta SHA separat om vi har token (behövs för att spara)
+    if(GH.token&&GH.owner){
+      try{
+        var metaRes=await fetch('https://api.github.com/repos/'+GH.owner+'/'+GH.repo+'/contents/'+GH.file,
+          {headers:{Authorization:'token '+GH.token,Accept:'application/vnd.github.v3+json'}});
+        if(metaRes.ok){var meta=await metaRes.json();_dataSha=meta.sha;}
+      }catch(_){}
+    }
+    setSyncStatus(GH.token?'ok':'warn', GH.token?'✓ Synkad':'👁 Skrivskyddad – klicka ⚙ GitHub för att spara');
     render();
   }catch(e){
     setSyncStatus('err','✗ '+e.message);
