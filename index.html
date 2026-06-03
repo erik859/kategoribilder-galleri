@@ -369,6 +369,7 @@ function render(){
   g.innerHTML='';
   D.forEach(function(sect,si){g.appendChild(makeSect(sect,si));});
   updateStats(); buildJump(); applyF(curF);
+  if(curView==='webshop')renderWS();
 }
 
 function makeSect(sect,si){
@@ -676,7 +677,7 @@ var curView = 'gallery';
 function switchView(v){
   curView=v;
   document.getElementById('gallery-view').style.display=(v==='gallery')?'':'none';
-  document.getElementById('webshop-view').style.display=(v==='webshop')?'':'none';
+  document.getElementById('webshop-view').style.display=(v==='webshop')?'block':'none';
   document.getElementById('vt-gallery').className='view-tab'+(v==='gallery'?' active':'');
   document.getElementById('vt-webshop').className='view-tab'+(v==='webshop'?' active':'');
   if(v==='webshop')renderWS();
@@ -824,37 +825,68 @@ function openMoveModal(si,ci){
     if(!sect.cards.length)return;
     var hdr=document.createElement('div');hdr.className='move-sect-hdr';hdr.textContent=sect.section;
     list.appendChild(hdr);
+    // Insert at top of section
+    var insTop=document.createElement('div');insTop.className='move-cat-item';
+    insTop.style.cssText='color:#27AE60;border-bottom:1px solid #eee;font-style:italic';
+    insTop.textContent='⊕ Infoga längst upp i '+sect.section;
+    (function(tsi2){insTop.onclick=function(){doMoveInsert(tsi2,0);};})(tsi);
+    list.appendChild(insTop);
     sect.cards.forEach(function(tcard,tci){
-      if(tsi===si&&tci===ci)return; // hoppa över sig själv
+      if(tsi===si&&tci===ci)return;
+      // Replace option
       var item=document.createElement('div');item.className='move-cat-item';
-      var status=tcard.type==='image'?'(har bild)':'(saknar bild)';
-      item.textContent=tcard.cat+' '+status;
-      item.style.color=tcard.type==='image'?'#888':'#1F4E79';
-      (function(tsi2,tci2){
-        item.onclick=function(){doMove(tsi2,tci2);};
-      })(tsi,tci);
+      item.style.display='flex';item.style.justifyContent='space-between';item.style.alignItems='center';
+      var label=document.createElement('span');
+      label.textContent=tcard.cat+(tcard.type==='image'?' ✓':'');
+      label.style.color=tcard.type==='image'?'#888':'#333';
+      var replBtn=document.createElement('button');
+      replBtn.textContent='Ersätt';
+      replBtn.style.cssText='font-size:10px;padding:1px 6px;border:1px solid #ddd;border-radius:3px;background:white;cursor:pointer;color:#c44;flex-shrink:0';
+      (function(tsi2,tci2){replBtn.onclick=function(e){e.stopPropagation();doMoveReplace(tsi2,tci2);};})(tsi,tci);
+      item.appendChild(label);item.appendChild(replBtn);
       list.appendChild(item);
+      // Insert after option
+      var insAfter=document.createElement('div');insAfter.className='move-cat-item';
+      insAfter.style.cssText='color:#27AE60;font-size:10px;padding:2px 8px;font-style:italic';
+      insAfter.textContent='⊕ Infoga efter '+tcard.cat;
+      (function(tsi2,tci2){insAfter.onclick=function(){doMoveInsert(tsi2,tci2+1);};})(tsi,tci);
+      list.appendChild(insAfter);
     });
   });
   document.getElementById('move-modal').style.display='flex';
 }
 function closeMoveModal(){document.getElementById('move-modal').style.display='none';_moveFrom=null;}
-function doMove(tsi,tci){
+
+function doMoveReplace(tsi,tci){
   if(!_moveFrom)return;
   var src=D[_moveFrom.si].cards[_moveFrom.ci];
   var dst=D[tsi].cards[tci];
-  // Kopiera bilddata från src till dst
   dst.type=src.type;
-  if(src.manualUrl)dst.manualUrl=src.manualUrl;
-  if(src.drive_id)dst.drive_id=src.drive_id;
+  if(src.manualUrl)dst.manualUrl=src.manualUrl; else delete dst.manualUrl;
+  if(src.drive_id)dst.drive_id=src.drive_id; else delete dst.drive_id;
   dst.fn=src.fn||'';
   dst.seoAlt=dst.cat+' – '+D[tsi].section+' cykel';
+  src.type='missing';
+  delete src.manualUrl;delete src.drive_id;delete src.fn;delete src.seoAlt;
+  src.search_url='https://www.google.com/search?tbm=isch&q='+encodeURIComponent(src.cat+' cykel');
+  closeMoveModal();render();saveState();
+}
+
+function doMoveInsert(tsi,pos){
+  if(!_moveFrom)return;
+  var src=D[_moveFrom.si].cards[_moveFrom.ci];
+  // Skapa en kopia av kortet på ny plats
+  var newCard={type:src.type,cat:src.cat,is_header:false,fn:src.fn||''};
+  if(src.manualUrl)newCard.manualUrl=src.manualUrl;
+  if(src.drive_id)newCard.drive_id=src.drive_id;
+  newCard.seoAlt=src.cat+' – '+D[tsi].section+' cykel';
+  // Infoga på rätt position
+  D[tsi].cards.splice(pos,0,newCard);
   // Rensa källan
   src.type='missing';
   delete src.manualUrl;delete src.drive_id;delete src.fn;delete src.seoAlt;
   src.search_url='https://www.google.com/search?tbm=isch&q='+encodeURIComponent(src.cat+' cykel');
-  closeMoveModal();
-  render();saveState();
+  closeMoveModal();render();saveState();
 }
 
 // ── Global drag handlers: show hint overlay, prevent browser from opening files ──
@@ -882,4 +914,4 @@ window.addEventListener('drop', function(e){
 loadFromGitHub();
 </script>
 </body>
-</html>
+</html>                                              
