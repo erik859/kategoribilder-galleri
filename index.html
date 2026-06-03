@@ -98,6 +98,39 @@ h1{color:#1F4E79;margin-bottom:4px;font-size:24px}
 #gh-setup-box p{font-size:12px;color:#666;margin-bottom:16px;line-height:1.6}
 #gh-setup-box input{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:Arial;margin-bottom:12px}
 #gh-setup-box .btns{display:flex;gap:8px;justify-content:flex-end}
+/* Move button */
+.btn-move{border-color:#8E44AD;color:#8E44AD}
+.btn-move:hover{background:#f5eeff;border-color:#8E44AD}
+/* View tabs */
+.view-tabs{display:flex;gap:4px;margin-bottom:16px}
+.view-tab{padding:7px 18px;font-size:13px;cursor:pointer;border:1px solid #ddd;background:white;border-radius:6px;color:#888;transition:all .15s}
+.view-tab.active{background:#1F4E79;color:white;border-color:#1F4E79}
+/* Webshop view */
+#webshop-view{display:none}
+.ws-l1{margin-bottom:12px}
+.ws-l1-hdr{font-size:16px;font-weight:bold;color:#1F4E79;padding:10px 14px;background:#f0f4f8;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:8px;border:1px solid #d0dce8}
+.ws-l1-hdr:hover{background:#e0ecf8}
+.ws-l1-body{display:none;padding:8px 0 4px 16px;border-left:3px solid #2E75B6;margin-left:7px;margin-top:4px}
+.ws-l1-body.open{display:block}
+.ws-l2{margin-bottom:8px}
+.ws-l2-hdr{font-size:13px;font-weight:bold;color:#555;padding:5px 10px;cursor:pointer;display:flex;align-items:center;gap:6px;border-radius:6px}
+.ws-l2-hdr:hover{background:#f5f5f5}
+.ws-l3-list{display:none;flex-wrap:wrap;gap:8px;padding:6px 0 6px 22px}
+.ws-l3-list.open{display:flex}
+.ws-cat{display:flex;align-items:center;gap:6px;background:white;border:1px solid #ddd;border-radius:8px;padding:4px 8px 4px 4px;font-size:11px;min-width:140px}
+.ws-cat.has{border-color:#27AE60}
+.ws-cat.miss{border-color:#f5c07a;border-style:dashed}
+.ws-cat img{width:32px;height:32px;object-fit:cover;border-radius:4px;flex-shrink:0}
+.ws-cat .ws-ph{width:32px;height:32px;background:#f0f0f0;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.ws-chevron{font-size:10px;transition:transform .15s;display:inline-block;color:#999}
+.ws-l1-hdr.open .ws-chevron,.ws-l2-hdr.open .ws-chevron{transform:rotate(90deg)}
+/* Move modal */
+#move-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center}
+#move-box{background:white;border-radius:12px;padding:22px;width:420px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.28)}
+#move-box h3{color:#1F4E79;font-size:15px;margin-bottom:12px}
+.move-sect-hdr{font-weight:bold;font-size:12px;color:#1F4E79;padding:6px 0 3px;border-bottom:1px solid #eee;margin-bottom:4px}
+.move-cat-item{padding:5px 8px;font-size:12px;cursor:pointer;border-radius:4px;color:#444}
+.move-cat-item:hover{background:#eef5ff;color:#1F4E79}
 </style>
 </head>
 <body>
@@ -132,8 +165,24 @@ h1{color:#1F4E79;margin-bottom:4px;font-size:24px}
   <span id="sync-status" class="sync-badge sync-loading">⏳ Startar...</span>
 </div>
 
+<div class="view-tabs">
+  <button class="view-tab active" id="vt-gallery" onclick="switchView('gallery')">📋 Gallerivy</button>
+  <button class="view-tab" id="vt-webshop" onclick="switchView('webshop')">🛒 Webshop-vy</button>
+</div>
+
+<div id="gallery-view">
 <div id="gallery"></div>
 <div><button class="add-sect" onclick="addSect()">＋ Lägg till ny sektion</button></div>
+</div>
+
+<div id="webshop-view">
+<div id="ws-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+  <button onclick="wsFilter('all')" id="wsf-all" style="padding:5px 14px;font-size:12px;cursor:pointer;border:1px solid #ccc;background:#1F4E79;color:white;border-radius:6px">Alla</button>
+  <button onclick="wsFilter('miss')" id="wsf-miss" style="padding:5px 14px;font-size:12px;cursor:pointer;border:1px solid #ccc;background:white;color:#888;border-radius:6px">Saknar bild</button>
+  <button onclick="wsFilter('has')" id="wsf-has" style="padding:5px 14px;font-size:12px;cursor:pointer;border:1px solid #ccc;background:white;color:#888;border-radius:6px">Har bild</button>
+</div>
+<div id="ws-tree"></div>
+</div>
 
 <!-- Modal -->
 <div id="modal" onclick="if(event.target===this)closeM()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center">
@@ -166,6 +215,18 @@ h1{color:#1F4E79;margin-bottom:4px;font-size:24px}
 <input type="file" id="lfi" accept="image/*" onchange="doLocal(this)" style="display:none">
 <!-- Full-page drag hint overlay -->
 <div id="drag-hint"><div id="drag-hint-box">🖼 Släpp bilden på ett kort<div class="sub">Dra direkt till det kort du vill uppdatera</div></div></div>
+
+<!-- Flytta-modal -->
+<div id="move-modal" onclick="if(event.target===this)closeMoveModal()">
+  <div id="move-box">
+    <h3>↔ Flytta bild till annan kategori</h3>
+    <p style="font-size:11px;color:#888;margin-bottom:12px" id="move-from-label"></p>
+    <div id="move-cat-list"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+      <button onclick="closeMoveModal()" style="padding:6px 16px;font-size:12px;border:1px solid #ddd;border-radius:6px;background:white;cursor:pointer;color:#888">Avbryt</button>
+    </div>
+  </div>
+</div>
 
 <!-- GitHub-inställningar modal -->
 <div id="gh-setup" onclick="if(event.target===this)closeGhSetup()">
@@ -410,7 +471,10 @@ function makeCard(card,si,ci){
   var delBtn=el('button');delBtn.className='btn-del';delBtn.textContent='✕ Ta bort';
   delBtn.title='Ta bort denna kategori';
   delBtn.onclick=function(e){e.stopPropagation();delCat(si,ci);};
-  acts.appendChild(hdrBtn);acts.appendChild(delBtn);
+  var movBtn=el('button');movBtn.className='btn-move';movBtn.textContent='↔ Flytta';
+  movBtn.title='Flytta bilden till en annan kategori';
+  (function(si2,ci2){movBtn.onclick=function(e){e.stopPropagation();openMoveModal(si2,ci2);};})(si,ci);
+  acts.appendChild(hdrBtn);acts.appendChild(movBtn);acts.appendChild(delBtn);
   info.appendChild(catDiv);info.appendChild(fnDiv);info.appendChild(acts);div.appendChild(info);
   return div;
 }
@@ -606,6 +670,192 @@ function doExport(){
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── View switching ────────────────────────────────────────────────────────
+var curView = 'gallery';
+function switchView(v){
+  curView=v;
+  document.getElementById('gallery-view').style.display=(v==='gallery')?'':'none';
+  document.getElementById('webshop-view').style.display=(v==='webshop')?'':'none';
+  document.getElementById('vt-gallery').className='view-tab'+(v==='gallery'?' active':'');
+  document.getElementById('vt-webshop').className='view-tab'+(v==='webshop'?' active':'');
+  if(v==='webshop')renderWS();
+}
+
+// ── WooCommerce-hierarki ──────────────────────────────────────────────────
+var WOO = [
+  ["Cykeldelar","Ram & Gaffel","Kompletta ramar"],["Cykeldelar","Ram & Gaffel","Dämpad framgaffel"],["Cykeldelar","Ram & Gaffel","Stel framgaffel"],["Cykeldelar","Ram & Gaffel","Bakdämpare"],["Cykeldelar","Ram & Gaffel","Styrlager"],["Cykeldelar","Ram & Gaffel","Tillbehör / Övrigt"],
+  ["Cykeldelar","Drivlina","Framdrev/Klinga / Remklinga"],["Cykeldelar","Drivlina","Vevpartier"],["Cykeldelar","Drivlina","Vevarmar"],["Cykeldelar","Drivlina","Vevlager"],["Cykeldelar","Drivlina","Kedjor / Remmar"],["Cykeldelar","Drivlina","Kassetter/Bakdrev"],["Cykeldelar","Drivlina","Tillbehör / Övrigt"],
+  ["Cykeldelar","Växlar","Bakväxel"],["Cykeldelar","Växlar","Framväxel"],["Cykeldelar","Växlar","Navväxel"],["Cykeldelar","Växlar","Växelreglage"],["Cykeldelar","Växlar","Växelvajrar"],["Cykeldelar","Växlar","Elektroniska växelkablar"],["Cykeldelar","Växlar","Tillbehör / Övrigt"],
+  ["Cykeldelar","Elsystem","Motor"],["Cykeldelar","Elsystem","Batteri"],["Cykeldelar","Elsystem","Displayer"],["Cykeldelar","Elsystem","Kontrollboxar"],["Cykeldelar","Elsystem","Reglage"],["Cykeldelar","Elsystem","Tillbehör / Övrigt"],
+  ["Cykeldelar","Bromsar","Fälgbromsar"],["Cykeldelar","Bromsar","Skivbromsar"],["Cykeldelar","Bromsar","Rullbromsar"],["Cykeldelar","Bromsar","Trumbromsar"],["Cykeldelar","Bromsar","Bromsskivor"],["Cykeldelar","Bromsar","Bromshandtag"],["Cykeldelar","Bromsar","Bromsbelägg"],["Cykeldelar","Bromsar","Bromsvajrar / Bromsslangar"],["Cykeldelar","Bromsar","Tillbehör / Övrigt"],
+  ["Cykeldelar","Hjul","Fälgar"],["Cykeldelar","Hjul","Ekrar"],["Cykeldelar","Hjul","Nav"],["Cykeldelar","Hjul","Däck"],["Cykeldelar","Hjul","Slangar"],["Cykeldelar","Hjul","Kompletta hjul"],["Cykeldelar","Hjul","Hjulset"],["Cykeldelar","Hjul","Tillbehör / Övrigt"],
+  ["Cykeldelar","Cockpit","Styren"],["Cykeldelar","Cockpit","Styrstammar"],["Cykeldelar","Cockpit","Handtag / Styrlindor"],["Cykeldelar","Cockpit","Barends"],["Cykeldelar","Cockpit","Tempobågar"],["Cykeldelar","Cockpit","Ringklockor"],["Cykeldelar","Cockpit","Speglar"],["Cykeldelar","Cockpit","Tillbehör / Övrigt"],["Cykeldelar","Cockpit","Spacers/Distansringar"],["Cykeldelar","Cockpit","Styrändspluggar"],
+  ["Cykeldelar","Belysning","Dynamo"],["Cykeldelar","Belysning","Navdynamo"],["Cykeldelar","Belysning","Framlampa"],["Cykeldelar","Belysning","Baklampa"],["Cykeldelar","Belysning","Belysningsset"],["Cykeldelar","Belysning","Reflexer"],["Cykeldelar","Belysning","Montering"],["Cykeldelar","Belysning","Tillbehör / Övrigt"],
+  ["Cykeldelar","Fästen","Stänkskärmar"],["Cykeldelar","Fästen","Kedjeskydd"],["Cykeldelar","Fästen","Ekerskydd"],["Cykeldelar","Fästen","Stöd"],["Cykeldelar","Fästen","Pakethållare"],["Cykeldelar","Fästen","Stödhjul"],["Cykeldelar","Fästen","Tillbehör / Övrigt"],
+  ["Cykeldelar","Sadlar","Sadlar"],["Cykeldelar","Sadlar","Sadelstolpar"],["Cykeldelar","Sadlar","Sadelskydd"],["Cykeldelar","Sadlar","Sadelklämmor"],["Cykeldelar","Sadlar","Snabbkopplingar"],["Cykeldelar","Sadlar","Tillbehör / Övrigt"],
+  ["Cykeldelar","Övriga delar","Drivlinegrupp"],["Cykeldelar","Övriga delar","Delar för motorcyklar"],["Cykeldelar","Övriga delar","Övrigt"],
+  ["Tillbehör","Pedaler","Standardpedaler"],["Tillbehör","Pedaler","Klickpedaler"],["Tillbehör","Pedaler","Kombipedaler"],["Tillbehör","Pedaler","Plattformspedaler"],["Tillbehör","Pedaler","Tillbehör / Övrigt"],
+  ["Tillbehör","Barnstolar","Barnstolar bak"],["Tillbehör","Barnstolar","Barnstolar fram"],["Tillbehör","Barnstolar","Fästen"],["Tillbehör","Barnstolar","Adaptrar"],["Tillbehör","Barnstolar","Tillbehör / Övrigt"],
+  ["Tillbehör","Vagnar","Cykelvagn barn"],["Tillbehör","Vagnar","Påhängscykel"],["Tillbehör","Vagnar","Transportvagn"],["Tillbehör","Vagnar","Hundvagn"],["Tillbehör","Vagnar","Kopplingar"],["Tillbehör","Vagnar","Tillbehör / Övrigt"],
+  ["Tillbehör","Väskor","Packväskor (sidoväska)"],["Tillbehör","Väskor","Styrväskor"],["Tillbehör","Väskor","Sadelväskor"],["Tillbehör","Väskor","Ryggsäckar"],["Tillbehör","Väskor","Cykelboxar"],["Tillbehör","Väskor","Cykelkorgar"],["Tillbehör","Väskor","Ramväskor"],["Tillbehör","Väskor","Spännband"],["Tillbehör","Väskor","Fästen"],["Tillbehör","Väskor","Tillbehör / Övrigt"],
+  ["Tillbehör","Lås","Wirelås"],["Tillbehör","Lås","Bygellås"],["Tillbehör","Lås","Vikbara lås"],["Tillbehör","Lås","Ramlås"],["Tillbehör","Lås","Kättinglås"],["Tillbehör","Lås","Fästen"],["Tillbehör","Lås","Tillbehör / Övrigt"],
+  ["Tillbehör","Pumpar","Rampumpar"],["Tillbehör","Pumpar","Minipumpar"],["Tillbehör","Pumpar","Golvpumpar"],["Tillbehör","Pumpar","CO2-pumpar"],["Tillbehör","Pumpar","Gaffelpumpar"],["Tillbehör","Pumpar","Kompressorer"],["Tillbehör","Pumpar","Fotpumpar"],["Tillbehör","Pumpar","Fästen"],["Tillbehör","Pumpar","Tillbehör / Övrigt"],
+  ["Tillbehör","Cykelflaskor","Vattenflaskor"],["Tillbehör","Cykelflaskor","Flaskhållare"],["Tillbehör","Cykelflaskor","Flaskset"],["Tillbehör","Cykelflaskor","Tillbehör / Övrigt"],
+  ["Tillbehör","Cykeltransport","Takmonterade cykelhållare"],["Tillbehör","Cykeltransport","Bakmonterade cykelhållare"],["Tillbehör","Cykeltransport","Transportväskor / Transportlådor"],["Tillbehör","Cykeltransport","Cykelsläp"],["Tillbehör","Cykeltransport","Tillbehör / Övrigt"],
+  ["Tillbehör","Cykelförvaring","Vägg- / Takkrok"],["Tillbehör","Cykelförvaring","Framhjulsställ"],["Tillbehör","Cykelförvaring","Cykelställ"],["Tillbehör","Cykelförvaring","Cykelgarage"],["Tillbehör","Cykelförvaring","Tillbehör / Övrigt"],
+  ["Tillbehör","Lastcykel-tillbehör","Tillbehör för lastcykel"],["Tillbehör","Lastcykel-tillbehör","Överdrag & väderskydd"],["Tillbehör","Lastcykel-tillbehör","Last & packning"],["Tillbehör","Lastcykel-tillbehör","Passagerartransport"],["Tillbehör","Lastcykel-tillbehör","Husdjurstransport"],
+  ["Tillbehör","Glasögon","Sportglasögon"],["Tillbehör","Glasögon","Goggles"],["Tillbehör","Glasögon","Tillbehör / Övrigt"],
+  ["Tillbehör","Cykelhjälm","Mountainbikehjälmar"],["Tillbehör","Cykelhjälm","Racerhjälmar"],["Tillbehör","Cykelhjälm","Cityhjälmar"],["Tillbehör","Cykelhjälm","Barn/Ungdomshjälmar"],["Tillbehör","Cykelhjälm","BMX-hjälmar"],["Tillbehör","Cykelhjälm","Fullfacehjälmar"],["Tillbehör","Cykelhjälm","Elcykelhjälmar"],["Tillbehör","Cykelhjälm","Tillbehör / Övrigt"],
+  ["Tillbehör","Cykelskor","Mountainbikeskor"],["Tillbehör","Cykelskor","Landsvägsskor"],["Tillbehör","Cykelskor","Trekking / City-skor"],["Tillbehör","Cykelskor","Barn / Junior-skor"],["Tillbehör","Cykelskor","Tillbehör / Övrigt"],
+  ["Tillbehör","Kroppsskydd","Knäskydd"],["Tillbehör","Kroppsskydd","Benskydd"],["Tillbehör","Kroppsskydd","Ryggskydd"],["Tillbehör","Kroppsskydd","Armbågsskydd"],["Tillbehör","Kroppsskydd","Övriga skydd"],
+  ["Tillbehör","Kläder","Bibs"],["Tillbehör","Kläder","Långbyxor"],["Tillbehör","Kläder","Piratbyxor"],["Tillbehör","Kläder","Baggyshorts"],["Tillbehör","Kläder","Sommarjackor"],["Tillbehör","Kläder","Vinterjackor"],["Tillbehör","Kläder","Västar"],["Tillbehör","Kläder","Dräkt"],["Tillbehör","Kläder","Regnkläder"],["Tillbehör","Kläder","Underkläder"],["Tillbehör","Kläder","Handskar"],["Tillbehör","Kläder","Armvärmare"],["Tillbehör","Kläder","Strumpor"],["Tillbehör","Kläder","Halsdukar / Buff"],["Tillbehör","Kläder","Fritidskläder"],
+  ["Personlig utrustning","El-accessoarer","Cykeldatorer"],["Personlig utrustning","El-accessoarer","Cykel-GPS"],["Personlig utrustning","El-accessoarer","Effektmätare/Wattmätare"],["Personlig utrustning","El-accessoarer","Actionkameror"],["Personlig utrustning","El-accessoarer","GPS-spårare"],["Personlig utrustning","El-accessoarer","Kommunikationsradio"],["Personlig utrustning","El-accessoarer","Bärbart"],["Personlig utrustning","El-accessoarer","Mjukvara / Appar"],["Personlig utrustning","El-accessoarer","Fästen"],["Personlig utrustning","El-accessoarer","Tillbehör / Övrigt"],
+  ["Personlig utrustning","Bikepacking","Tält"],["Personlig utrustning","Bikepacking","Sovsäckar"],["Personlig utrustning","Bikepacking","Liggunderlag"],["Personlig utrustning","Bikepacking","Campingkök"],["Personlig utrustning","Bikepacking","Kokkärl & bestick"],["Personlig utrustning","Bikepacking","Vattenrening"],
+  ["Personlig utrustning","Cykelverktyg","Verktyg"],["Personlig utrustning","Cykelverktyg","Monteringsställ"],["Personlig utrustning","Cykelverktyg","Skötselprodukter / Reparationsprodukter"],
+  ["Personlig utrustning","Kroppsskydd","Knäskydd"],["Personlig utrustning","Kroppsskydd","Benskydd"],["Personlig utrustning","Kroppsskydd","Ryggskydd"],["Personlig utrustning","Kroppsskydd","Armbågsskydd"],["Personlig utrustning","Kroppsskydd","Övriga skydd"],
+  ["Övrigt","Hemmaträning",""],["Övrigt","Motionscykel",""],["Övrigt","Crosstrainer",""],["Övrigt","Löpband",""],["Övrigt","Roddmaskin",""],["Övrigt","Styrketräning",""],
+  ["Övriga sporter","Trendsport",""],["Övriga sporter","Inlines",""],["Övriga sporter","Sparkcykel",""],["Övriga sporter","Enhjuling",""],["Övriga sporter","Skateboard",""],
+  ["Uthyrning","Cyklar",""],["Uthyrning","Pedelecs",""],["Uthyrning","S-Pedelecs",""],["Uthyrning","Övriga fordon",""]
+];
+
+var wsCurFilter = 'all';
+function wsFilter(f){
+  wsCurFilter=f;
+  ['all','miss','has'].forEach(function(x){
+    var b=document.getElementById('wsf-'+x);
+    b.style.background=x===f?'#1F4E79':'white';
+    b.style.color=x===f?'white':'#888';
+  });
+  renderWS();
+}
+
+function findGalleryImg(catName){
+  for(var si=0;si<D.length;si++){
+    for(var ci=0;ci<D[si].cards.length;ci++){
+      var c=D[si].cards[ci];
+      if(c.type==='image'&&c.cat&&c.cat.toLowerCase().trim()===catName.toLowerCase().trim()){
+        return c.manualUrl||(c.drive_id?'https://lh3.googleusercontent.com/d/'+c.drive_id+'=w60':'');
+      }
+    }
+  }
+  return null;
+}
+
+function renderWS(){
+  var tree={};
+  WOO.forEach(function(row){
+    var l1=row[0],l2=row[1],l3=row[2];
+    if(!tree[l1])tree[l1]={};
+    if(!tree[l1][l2])tree[l1][l2]=[];
+    if(l3&&tree[l1][l2].indexOf(l3)<0)tree[l1][l2].push(l3);
+  });
+  var root=document.getElementById('ws-tree');
+  root.innerHTML='';
+  var l1keys=Object.keys(tree);
+  l1keys.forEach(function(l1,l1i){
+    var l2keys=Object.keys(tree[l1]);
+    var l1div=document.createElement('div');l1div.className='ws-l1';
+    var l1id='wsl1_'+l1i;
+    // Count stats
+    var tot=0,has=0;
+    l2keys.forEach(function(l2){tree[l1][l2].forEach(function(l3){tot++;if(findGalleryImg(l3)||findGalleryImg(l2))has++;});});
+    var pct=tot?Math.round(has/tot*100):0;
+    var l1hdr=document.createElement('div');l1hdr.className='ws-l1-hdr';
+    l1hdr.innerHTML='<span class="ws-chevron">&#9654;</span><span style="flex:1">'+l1+'</span>'+
+      '<span style="font-size:11px;color:#666;font-weight:normal">'+has+'/'+tot+' bilder &nbsp;</span>'+
+      '<span style="font-size:11px;background:'+(pct>=80?'#d4edda':pct>=40?'#fff3cd':'#f8d7da')+';color:'+(pct>=80?'#155724':pct>=40?'#856404':'#721c24')+';padding:1px 8px;border-radius:10px">'+pct+'%</span>';
+    l1hdr.onclick=function(){
+      var b=document.getElementById(l1id);
+      b.classList.toggle('open');
+      l1hdr.classList.toggle('open');
+    };
+    l1div.appendChild(l1hdr);
+    var l1body=document.createElement('div');l1body.className='ws-l1-body';l1body.id=l1id;
+    l2keys.forEach(function(l2,l2i){
+      var cats=tree[l1][l2];
+      var l2div=document.createElement('div');l2div.className='ws-l2';
+      var l2id='wsl2_'+l1i+'_'+l2i;
+      var l2img=findGalleryImg(l2);
+      var l2has=cats.filter(function(c){return findGalleryImg(c)||findGalleryImg(l2);}).length;
+      var l2hdr=document.createElement('div');l2hdr.className='ws-l2-hdr';
+      var imgEl=l2img?'<img src="'+l2img+'" style="width:20px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0">'
+        :'<span style="width:20px;height:20px;background:#f0f0f0;border-radius:3px;display:inline-block;vertical-align:middle"></span>';
+      l2hdr.innerHTML=(cats.length?'<span class="ws-chevron">&#9654;</span>':'')+imgEl+'<span style="margin-left:4px">'+l2+'</span>'+
+        '<span style="margin-left:auto;font-size:10px;color:#aaa">'+l2has+'/'+cats.length+'</span>';
+      if(cats.length){
+        l2hdr.onclick=function(){
+          var b=document.getElementById(l2id);
+          b.classList.toggle('open');
+          l2hdr.classList.toggle('open');
+        };
+      }
+      l2div.appendChild(l2hdr);
+      if(cats.length){
+        var l3list=document.createElement('div');l3list.className='ws-l3-list';l3list.id=l2id;
+        cats.forEach(function(l3){
+          if(!l3)return;
+          var img=findGalleryImg(l3);
+          if(wsCurFilter==='has'&&!img)return;
+          if(wsCurFilter==='miss'&&img)return;
+          var catEl=document.createElement('div');catEl.className='ws-cat '+(img?'has':'miss');
+          if(img)catEl.innerHTML='<img src="'+img+'" onerror="this.style.display='none'"><span>'+l3+'</span>';
+          else catEl.innerHTML='<div class="ws-ph">?</div><span style="color:#aaa">'+l3+'</span>';
+          l3list.appendChild(catEl);
+        });
+        l2div.appendChild(l3list);
+      }
+      l1body.appendChild(l2div);
+    });
+    l1div.appendChild(l1body);
+    root.appendChild(l1div);
+  });
+}
+
+// ── Flytta bild ──────────────────────────────────────────────────────────
+var _moveFrom = null;
+function openMoveModal(si,ci){
+  _moveFrom={si:si,ci:ci};
+  var card=D[si].cards[ci];
+  document.getElementById('move-from-label').textContent='Flytta: '+D[si].section+' → '+card.cat;
+  var list=document.getElementById('move-cat-list');
+  list.innerHTML='';
+  D.forEach(function(sect,tsi){
+    if(!sect.cards.length)return;
+    var hdr=document.createElement('div');hdr.className='move-sect-hdr';hdr.textContent=sect.section;
+    list.appendChild(hdr);
+    sect.cards.forEach(function(tcard,tci){
+      if(tsi===si&&tci===ci)return; // hoppa över sig själv
+      var item=document.createElement('div');item.className='move-cat-item';
+      var status=tcard.type==='image'?'(har bild)':'(saknar bild)';
+      item.textContent=tcard.cat+' '+status;
+      item.style.color=tcard.type==='image'?'#888':'#1F4E79';
+      (function(tsi2,tci2){
+        item.onclick=function(){doMove(tsi2,tci2);};
+      })(tsi,tci);
+      list.appendChild(item);
+    });
+  });
+  document.getElementById('move-modal').style.display='flex';
+}
+function closeMoveModal(){document.getElementById('move-modal').style.display='none';_moveFrom=null;}
+function doMove(tsi,tci){
+  if(!_moveFrom)return;
+  var src=D[_moveFrom.si].cards[_moveFrom.ci];
+  var dst=D[tsi].cards[tci];
+  // Kopiera bilddata från src till dst
+  dst.type=src.type;
+  if(src.manualUrl)dst.manualUrl=src.manualUrl;
+  if(src.drive_id)dst.drive_id=src.drive_id;
+  dst.fn=src.fn||'';
+  dst.seoAlt=dst.cat+' – '+D[tsi].section+' cykel';
+  // Rensa källan
+  src.type='missing';
+  delete src.manualUrl;delete src.drive_id;delete src.fn;delete src.seoAlt;
+  src.search_url='https://www.google.com/search?tbm=isch&q='+encodeURIComponent(src.cat+' cykel');
+  closeMoveModal();
+  render();saveState();
+}
 
 // ── Global drag handlers: show hint overlay, prevent browser from opening files ──
 var _dragDepth=0;
