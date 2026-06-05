@@ -1,5 +1,5 @@
-import { useStore } from '../store'
 import { useState } from 'react'
+import { useStore } from '../store'
 import CsvExportModal from './modals/CsvExportModal'
 
 export default function Toolbar() {
@@ -25,15 +25,14 @@ export default function Toolbar() {
           {sections.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
 
+        <button onClick={() => setShowCsv(true)} style={{ borderColor: '#27AE60', color: '#27AE60', fontWeight: 'bold' }}>⬇ CSV</button>
         <button onClick={loadFromGitHub} style={{ borderColor: '#2E75B6', color: '#2E75B6', fontWeight: 'bold' }}>🔄 Hämta senaste</button>
         <button onClick={() => { if (confirm('Laddar om från GitHub och tar bort lokala ändringar. Säker?')) { localStorage.removeItem('kbg_state'); loadFromGitHub() } }}
           style={{ borderColor: '#c44', color: '#c44', fontSize: 11 }}>↺ Återställ</button>
         <button onClick={() => setShowGhSetup(true)} style={{ borderColor: '#888', color: '#666', fontSize: 11 }}>⚙ GitHub</button>
 
-        <button id="undo-btn" onClick={undo} disabled={!undoStack.length}
-          style={{ opacity: undoStack.length ? 1 : 0.4 }} title={`Ångra (${undoStack.length} steg)`}>↩ Ångra</button>
-        <button id="redo-btn" onClick={redo} disabled={!redoStack.length}
-          style={{ opacity: redoStack.length ? 1 : 0.4 }}>↪ Gör om</button>
+        <button onClick={undo} disabled={!undoStack.length} style={{ opacity: undoStack.length ? 1 : 0.4 }} title={`Ångra (${undoStack.length} steg)`}>↩ Ångra</button>
+        <button onClick={redo} disabled={!redoStack.length} style={{ opacity: redoStack.length ? 1 : 0.4 }}>↪ Gör om</button>
 
         <span className={`sync-badge sync-${syncStatus}`}>{syncText}</span>
       </div>

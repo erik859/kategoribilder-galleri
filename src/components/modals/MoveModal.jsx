@@ -12,7 +12,7 @@ export default function MoveModal({ si, ci, onClose }) {
     g[tsi].cards[tci] = { ...dst, type: src.type, manualUrl: src.manualUrl, drive_id: src.drive_id, fn: catToFilename(dst.cat), seoAlt: dst.cat + ' – ' + g[tsi].section + ' cykel' }
     if (src.manualUrl === undefined) delete g[tsi].cards[tci].manualUrl
     if (src.drive_id === undefined) delete g[tsi].cards[tci].drive_id
-    g[fromSi].cards[si] = { ...src, type: 'missing', manualUrl: undefined, drive_id: undefined, fn: undefined, search_url: `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(src.cat + ' cykel')}` }
+    g[si].cards[ci] = { ...src, type: 'missing', manualUrl: undefined, drive_id: undefined, fn: undefined, search_url: `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(src.cat + ' cykel')}` }
     setGallery(g); saveState(); onClose()
   }
 

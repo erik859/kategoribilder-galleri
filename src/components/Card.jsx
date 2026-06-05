@@ -4,7 +4,7 @@ import { catToFilename } from '../utils/helpers'
 import ImageModal from './modals/ImageModal'
 import MoveModal from './modals/MoveModal'
 
-export default function Card({ card, si, ci }) {
+export default function Card({ card, si, ci, dragListeners, dragAttributes }) {
   const { updateCard, deleteCard, toggleHeader, pushUndo, saveState, gallery } = useStore()
   const [showImageModal, setShowImageModal] = useState(false)
   const [showMoveModal, setShowMoveModal] = useState(false)
@@ -103,6 +103,7 @@ export default function Card({ card, si, ci }) {
           )}
           <div className={`card-fn ${isMissing ? 'bad' : ''}`}>{isMissing ? '⚠ Saknar bild' : (card.fn || '')}</div>
           <div className="card-actions">
+            {dragListeners && <span {...dragListeners} {...dragAttributes} style={{ cursor: 'grab', color: '#ccc', fontSize: 12, padding: '0 4px' }} title="Dra för att flytta">⠿</span>}
             <button className={`btn-hdr ${isHeader ? 'on' : ''}`}
               onClick={() => { pushUndo(); toggleHeader(si, ci); saveState() }}>
               {isHeader ? '★ Huvud' : '☆ Sätt huvud'}
