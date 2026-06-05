@@ -414,7 +414,19 @@ async function saveGhConfig(){
 
 var CE=null, CF=null, curF='all';
 // ── Load saved state from localStorage ───────────────────────────────────
-(function(){try{var s=localStorage.getItem('kbg_state');if(s){var p=JSON.parse(s);if(Array.isArray(p)){D=p;}else{D=p.gallery||[];if(p.woo)WOO=p.woo;if(p.mapping)MAPPING=p.mapping;}}}catch(e){}})();
+// Ladda localStorage direkt och rendera — visar data omedelbart utan att vänta på GitHub
+(function(){
+  try{
+    var s=localStorage.getItem('kbg_state');
+    if(s){
+      var p=JSON.parse(s);
+      if(Array.isArray(p)){D=p;}
+      else{D=p.gallery||[];if(p.woo)WOO=p.woo;if(p.mapping)MAPPING=p.mapping;}
+      render(); // Visa direkt
+      setSyncStatus('loading','⏳ Synkar med GitHub...');
+    }
+  }catch(e){}
+})();
 
 // ── Render ────────────────────────────────────────────────────────────────
 function render(){
