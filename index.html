@@ -1203,6 +1203,12 @@ window.addEventListener('dragleave',function(e){
 });
 window.addEventListener('dragover', function(e){e.preventDefault();});
 window.addEventListener('drop', function(e){
-  e.preventDefault();  // Stop browser from opening dropped file
+  e.preventDefault();
   _dragDepth=0;hideDragHint();
-  // If drop lands on window (not on a card)
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+loadFromGitHub();
+</script>
+</body>
+</html>
