@@ -1086,9 +1086,21 @@ function renderWS(){
     l2keys.forEach(function(l2,l2i){
       var cats=tree[l1][l2];
       var l2div=document.createElement('div');l2div.className='ws-l2';
+      l2div.style.transition='border .1s';
       var l2id='wsl2_'+l1i+'_'+l2i;
       var l2img=findGalleryImg(l2);
       var l2hdr=document.createElement('div');l2hdr.className='ws-l2-hdr';l2hdr.style.position='relative';
+      // ── Drag L2 between L1 sections ──
+      l2hdr.draggable=true;
+      (function(l1c,l2c){
+        l2hdr.addEventListener('dragstart',function(e){
+          e.stopPropagation();
+          e.dataTransfer.setData('text/plain','ws-l2:'+l1c+'::'+l2c);
+          e.dataTransfer.effectAllowed='move';
+          l2hdr.style.opacity='0.5';
+        });
+        l2hdr.addEventListener('dragend',function(){l2hdr.style.opacity='';});
+      })(l1,l2);
       var chevEl2=document.createElement('span');chevEl2.className='ws-chevron';if(cats.length)chevEl2.innerHTML='&#9654;';
       var imgEl=document.createElement('span');
       if(l2img){var iEl=document.createElement('img');iEl.src=l2img;iEl.style.cssText='width:20px;height:20px;object-fit:cover;border-radius:3px;vertical-align:middle';imgEl.appendChild(iEl);}
@@ -1139,6 +1151,30 @@ function renderWS(){
       }
       l1body.appendChild(l2div);
     });
+    // ── Drop target: accept L2 drags onto L1 section ──
+    (function(l1c){
+      l1div.addEventListener('dragover',function(e){
+        if(e.dataTransfer.types.indexOf('text/plain')<0)return;
+        e.preventDefault();e.dataTransfer.dropEffect='move';
+        l1div.style.outline='2px dashed #2E75B6';
+      });
+      l1div.addEventListener('dragleave',function(){l1div.style.outline='';});
+      l1div.addEventListener('drop',function(e){
+        l1div.style.outline='';
+        var d=e.dataTransfer.getData('text/plain');
+        if(!d.startsWith('ws-l2:'))return;
+        e.preventDefault();e.stopPropagation();
+        var parts=d.replace('ws-l2:','').split('::');
+        var fromL1=parts[0],l2name=parts[1];
+        if(fromL1===l1c)return;
+        pushUndo();
+        // Move all WOO rows with this L2 to new L1
+        WOO=WOO.map(function(r){
+          return r[1]===l2name&&r[0]===fromL1?[l1c,r[1],r[2]]:r;
+        });
+        renderWS();saveState();
+      });
+    })(l1);
     l1div.appendChild(l1body);
     root.appendChild(l1div);
   });
@@ -1220,10 +1256,8 @@ function doMoveInsert(tsi,pos){
   closeMoveModal();render();saveState();
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
 function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-// ── Global drag handlers: show hint overlay, prevent browser from opening files ──
 var _dragDepth=0;
 function showDragHint(){document.getElementById('drag-hint').classList.add('show');}
 function hideDragHint(){document.getElementById('drag-hint').classList.remove('show');}
@@ -1244,7 +1278,6 @@ window.addEventListener('drop', function(e){
   _dragDepth=0;hideDragHint();
 });
 
-// ── Init ──────────────────────────────────────────────────────────────────
 loadFromGitHub();
 </script>
 </body>
