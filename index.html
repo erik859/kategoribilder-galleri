@@ -499,6 +499,15 @@ function makeCard(card,si,ci){
   div.className='card'+(card.is_header?' hdr':'')+(card.type==='missing'?' miss':'')+(card.cat==='Granska manuellt'?' unk':'');
   div.dataset.si=si;div.dataset.ci=ci;
   // ── Drag & drop directly onto card ──────────────────────────────────────
+  div.draggable=true;
+  div.addEventListener('dragstart',function(e){
+    if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT'){e.preventDefault();return;}
+    e.stopPropagation();
+    e.dataTransfer.setData('text/plain','card:'+si+':'+ci);
+    e.dataTransfer.effectAllowed='move';
+    div.style.opacity='0.5';
+  });
+  div.addEventListener('dragend',function(){div.style.opacity='';});
   div.addEventListener('dragenter',function(e){e.preventDefault();e.stopPropagation();div.classList.add('drag-over');});
   div.addEventListener('dragover', function(e){e.preventDefault();e.stopPropagation();div.classList.add('drag-over');});
   div.addEventListener('dragleave',function(e){e.stopPropagation();div.classList.remove('drag-over');});
@@ -506,6 +515,21 @@ function makeCard(card,si,ci){
     e.preventDefault();e.stopPropagation();
     div.classList.remove('drag-over');
     hideDragHint();
+    // Check if this is a card reorder drop
+    var cardData=e.dataTransfer.getData('text/plain');
+    if(cardData&&cardData.startsWith('card:')){
+      var parts=cardData.split(':');
+      var fromSi=parseInt(parts[1]),fromCi=parseInt(parts[2]);
+      if(fromSi===si&&fromCi!==ci){
+        pushUndo();
+        var moved=D[si].cards.splice(fromCi,1)[0];
+        var toIdx=ci;
+        if(fromCi<toIdx)toIdx--;
+        D[si].cards.splice(toIdx,0,moved);
+        render();saveState();
+      }
+      return;
+    }
     var f=e.dataTransfer.files&&e.dataTransfer.files[0];
     if(f&&f.type.startsWith('image/')){
       // Read file and assign directly without opening modal
@@ -1145,6 +1169,40 @@ function renderWS(){
           (function(l1c,l2c,l3c){delL3.onclick=function(e){e.stopPropagation();wooDeleteL3(l1c,l2c,l3c);};})(l1,l2,l3);
           catEl.onmouseenter=function(){delL3.style.opacity='1';editL3Btn.style.opacity='1';};catEl.onmouseleave=function(){delL3.style.opacity='0';editL3Btn.style.opacity='0';};
           catEl.appendChild(delL3);
+          // Drag reorder L3 within L2
+          catEl.draggable=true;
+          (function(l1c,l2c,l3c){
+            catEl.addEventListener('dragstart',function(e){
+              e.stopPropagation();
+              e.dataTransfer.setData('text/plain','wsl3:'+l1c+'::'+l2c+'::'+l3c);
+              e.dataTransfer.effectAllowed='move';
+              catEl.style.opacity='0.4';
+            });
+            catEl.addEventListener('dragend',function(){catEl.style.opacity='';});
+            catEl.addEventListener('dragover',function(e){
+              var d=e.dataTransfer.types.length>0;
+              if(!d)return;
+              e.preventDefault();catEl.style.outline='2px dashed #2E75B6';
+            });
+            catEl.addEventListener('dragleave',function(){catEl.style.outline='';});
+            catEl.addEventListener('drop',function(e){
+              catEl.style.outline='';
+              var d=e.dataTransfer.getData('text/plain');
+              if(!d.startsWith('wsl3:'))return;
+              e.preventDefault();e.stopPropagation();
+              var parts=d.replace('wsl3:','').split('::');
+              var fl1=parts[0],fl2=parts[1],fl3=parts[2];
+              if(fl2!==l2c||fl3===l3c)return;
+              pushUndo();
+              // Move fl3 before l3c in WOO
+              var rows=WOO.filter(function(r){return r[0]===fl1&&r[1]===fl2&&r[2]===fl3;});
+              WOO=WOO.filter(function(r){return!(r[0]===fl1&&r[1]===fl2&&r[2]===fl3);});
+              var insertIdx=WOO.findIndex(function(r){return r[0]===l1c&&r[1]===l2c&&r[2]===l3c;});
+              if(insertIdx>=0)WOO.splice(insertIdx,0,rows[0]);
+              else WOO=WOO.concat(rows);
+              renderWS();saveState();
+            });
+          })(l1,l2,l3);
           l3list.appendChild(catEl);
         });
         l2div.appendChild(l3list);
