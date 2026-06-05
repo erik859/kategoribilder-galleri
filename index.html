@@ -74,6 +74,8 @@ h1{color:#1F4E79;margin-bottom:4px;font-size:24px}
 .card-actions .btn-hdr.on{background:#2E75B6;color:white}
 .card-actions .btn-del{border-color:#e8a0a0;color:#c44444}
 .card-actions .btn-del:hover{background:#fdecea;border-color:#c44444}
+/* Drag section */
+.sect-hdr:hover{background:rgba(31,78,121,.04);border-radius:6px}
 /* Drag-over highlight on card */
 .card.drag-over{outline:3px dashed #2E75B6;outline-offset:-3px;background:#eef5ff !important;}
 .card.drag-over .ph{background:#dbeeff;color:#2E75B6;}
@@ -437,10 +439,41 @@ function render(){
   if(curView==='webshop')renderWS();
 }
 
+var _dragSectIdx = null;
+
 function makeSect(sect,si){
   var wrap=el('div');wrap.className='sect-block';wrap.id='s'+si;wrap.dataset.si=si;
   // Header
-  var hdr=el('h2');hdr.className='sect-hdr';
+  var hdr=el('h2');hdr.className='sect-hdr';hdr.draggable=true;hdr.style.cursor='grab';
+  hdr.title='Dra för att flytta sektionen';
+  // Drag events on header
+  hdr.addEventListener('dragstart',function(e){
+    _dragSectIdx=si;
+    e.dataTransfer.effectAllowed='move';
+    hdr.style.opacity='0.5';
+  });
+  hdr.addEventListener('dragend',function(){
+    hdr.style.opacity='';
+    document.querySelectorAll('.sect-block').forEach(function(b){b.style.borderTop='';});
+  });
+  // Drop events on wrap
+  wrap.addEventListener('dragover',function(e){
+    if(_dragSectIdx===null||_dragSectIdx===si)return;
+    e.preventDefault();e.dataTransfer.dropEffect='move';
+    wrap.style.borderTop='3px solid #2E75B6';
+  });
+  wrap.addEventListener('dragleave',function(){wrap.style.borderTop='';});
+  wrap.addEventListener('drop',function(e){
+    e.preventDefault();wrap.style.borderTop='';
+    if(_dragSectIdx===null||_dragSectIdx===si)return;
+    pushUndo();
+    var moved=D.splice(_dragSectIdx,1)[0];
+    var targetIdx=parseInt(wrap.dataset.si);
+    if(_dragSectIdx<targetIdx)targetIdx--;
+    D.splice(targetIdx,0,moved);
+    _dragSectIdx=null;
+    render();saveState();
+  });
   var nameEl=el('span');nameEl.className='sect-name';nameEl.textContent=sect.section;
   var renBtn=el('button');renBtn.className='s-btn';renBtn.textContent='✏ Byt namn';
   renBtn.onclick=function(){renSect(si,nameEl);};
@@ -1187,18 +1220,22 @@ function doMoveInsert(tsi,pos){
   closeMoveModal();render();saveState();
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
 // ── Global drag handlers: show hint overlay, prevent browser from opening files ──
 var _dragDepth=0;
 function showDragHint(){document.getElementById('drag-hint').classList.add('show');}
 function hideDragHint(){document.getElementById('drag-hint').classList.remove('show');}
 
 window.addEventListener('dragenter',function(e){
-  // Only show hint when dragging files (not text/links)
+  if(_dragSectIdx!==null)return;
   if(e.dataTransfer&&e.dataTransfer.types&&Array.from(e.dataTransfer.types).indexOf('Files')>=0){
     _dragDepth++;if(_dragDepth===1)showDragHint();
   }
 });
 window.addEventListener('dragleave',function(e){
+  if(_dragSectIdx!==null)return;
   _dragDepth--;if(_dragDepth<=0){_dragDepth=0;hideDragHint();}
 });
 window.addEventListener('dragover', function(e){e.preventDefault();});
