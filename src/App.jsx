@@ -1,16 +1,17 @@
 import { useEffect, useCallback } from 'react'
 import { useStore } from './store'
 import Toolbar from './components/Toolbar'
+import ProjectSelector from './components/ProjectSelector'
 import GalleryView from './components/GalleryView'
 import WebshopView from './components/WebshopView'
 import GithubSetupModal from './components/modals/GithubSetupModal'
 import DragHint from './components/DragHint'
 
 export default function App() {
-  const { curView, loadFromGitHub, undo, redo, gallery, undoStack, redoStack } = useStore()
+  const { curView, init, undo, redo, gallery, undoStack, redoStack } = useStore()
 
-  // Load data on mount — show localStorage immediately, then sync GitHub
-  useEffect(() => { loadFromGitHub() }, [])
+  // Load projects + active project data on mount (localStorage first, then GitHub)
+  useEffect(() => { init() }, [])
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e) => {
@@ -36,6 +37,10 @@ export default function App() {
       <p style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
         Klicka på bild → redigera &bull; Dubbelklicka på kategorinamn → redigera &bull; Dra & släpp bild direkt på kort
       </p>
+
+      <div style={{ background: '#f0f4f8', border: '1px solid #d0dce8', borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>
+        <ProjectSelector />
+      </div>
 
       <div className="stats">
         <div className="stat"><div className="n">{totalImg}</div><div className="l">✓ Har bild</div></div>

@@ -3,7 +3,7 @@ import { useStore } from '../store'
 import CsvExportModal from './modals/CsvExportModal'
 
 export default function Toolbar() {
-  const { filter, setFilter, loadFromGitHub, syncStatus, syncText, undoStack, redoStack, undo, redo, gallery, setShowGhSetup } = useStore()
+  const { filter, setFilter, loadFromGitHub, resetProject, syncStatus, syncText, undoStack, redoStack, undo, redo, gallery, setShowGhSetup } = useStore()
   const [showCsv, setShowCsv] = useState(false)
 
   const sections = gallery.map((s, i) => ({ label: `${s.section} (${s.cards.length})`, value: i }))
@@ -27,7 +27,7 @@ export default function Toolbar() {
 
         <button onClick={() => setShowCsv(true)} style={{ borderColor: '#27AE60', color: '#27AE60', fontWeight: 'bold' }}>⬇ CSV</button>
         <button onClick={loadFromGitHub} style={{ borderColor: '#2E75B6', color: '#2E75B6', fontWeight: 'bold' }}>🔄 Hämta senaste</button>
-        <button onClick={() => { if (confirm('Laddar om från GitHub och tar bort lokala ändringar. Säker?')) { localStorage.removeItem('kbg_state'); loadFromGitHub() } }}
+        <button onClick={() => { if (confirm('Laddar om från GitHub och tar bort lokala ändringar för detta projekt. Säker?')) resetProject() }}
           style={{ borderColor: '#c44', color: '#c44', fontSize: 11 }}>↺ Återställ</button>
         <button onClick={() => setShowGhSetup(true)} style={{ borderColor: '#888', color: '#666', fontSize: 11 }}>⚙ GitHub</button>
 
