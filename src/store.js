@@ -1,24 +1,58 @@
 import { create } from 'zustand'
-import { loadData, saveData } from './utils/github'
+import { loadData, saveData, loadJson, saveJson, getSha, PROJECTS_FILE } from './utils/github'
 import { catToFilename } from './utils/helpers'
 
 const MAX_UNDO = 20
+const DEFAULT_PROJECT = { id: 'default', name: 'Standard', file: 'data.json' }
 
-function loadLocalStorage() {
+// ── Project registry persistence (localStorage cache) ────────────────────────
+function loadProjectsLocal() {
   try {
-    const s = localStorage.getItem('kbg_state')
+    const s = localStorage.getItem('kbg_projects')
+    if (s) { const p = JSON.parse(s); if (Array.isArray(p) && p.length) return p }
+  } catch (_) {}
+  return null
+}
+function saveProjectsLocal(projects) {
+  try { localStorage.setItem('kbg_projects', JSON.stringify(projects)) } catch (_) {}
+}
+
+// ── Per-project data cache (localStorage) ────────────────────────────────────
+function stateKey(id) { return `kbg_state_${id}` }
+
+function loadLocalStorage(projectId) {
+  try {
+    let s = localStorage.getItem(stateKey(projectId))
+    // migrate legacy single-project key
+    if (!s && projectId === 'default') s = localStorage.getItem('kbg_state')
     if (!s) return null
     const p = JSON.parse(s)
     return Array.isArray(p) ? { gallery: p, woo: [], mapping: [] } : p
   } catch { return null }
 }
+function saveLocalStorage(projectId, gallery, woo, mapping) {
+  try { localStorage.setItem(stateKey(projectId), JSON.stringify({ gallery, woo, mapping })) } catch (_) {}
+}
 
-function saveLocalStorage(gallery, woo, mapping) {
-  try { localStorage.setItem('kbg_state', JSON.stringify({ gallery, woo, mapping })) } catch (_) {}
+function slugify(name) {
+  return (name || '')
+    .toLowerCase()
+    .replace(/[åä]/g, 'a').replace(/ö/g, 'o')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'projekt'
 }
 
 export const useStore = create((set, get) => {
-  const local = loadLocalStorage()
+  const projects = loadProjectsLocal() || [DEFAULT_PROJECT]
+  const savedId = localStorage.getItem('kbg_current_project')
+  const currentProjectId = projects.find(p => p.id === savedId) ? savedId : projects[0].id
+  const local = loadLocalStorage(currentProjectId)
+
+  // Resolve the data file of the active project
+  const curFile = () => {
+    const { projects, currentProjectId } = get()
+    return (projects.find(p => p.id === currentProjectId) || DEFAULT_PROJECT).file
+  }
 
   return {
     gallery: local?.gallery || [],
@@ -35,15 +69,55 @@ export const useStore = create((set, get) => {
     ghToken: localStorage.getItem('gh_token') || '',
     showGhSetup: false,
 
+    // Projects
+    projects,
+    currentProjectId,
+    projectsSha: null,
+
     // ── Sync status ──────────────────────────────────────────────────────
     setSyncStatus: (status, text) => set({ syncStatus: status, syncText: text }),
 
-    // ── Load from GitHub ─────────────────────────────────────────────────
+    // ── App init: load project registry, then the active project's data ──
+    init: async () => {
+      await get().loadProjects()
+      await get().loadFromGitHub()
+    },
+
+    // ── Load project registry (projects.json on GitHub) ──────────────────
+    loadProjects: async () => {
+      try {
+        const remote = await loadJson(PROJECTS_FILE)
+        if (Array.isArray(remote) && remote.length) {
+          saveProjectsLocal(remote)
+          let { currentProjectId } = get()
+          if (!remote.find(p => p.id === currentProjectId)) currentProjectId = remote[0].id
+          const sha = await getSha(PROJECTS_FILE)
+          set({ projects: remote, currentProjectId, projectsSha: sha })
+        }
+      } catch (_) {
+        // projects.json doesn't exist yet — keep local/default list
+      }
+    },
+
+    // ── Persist project registry (local + GitHub if token) ───────────────
+    saveProjects: async (projects) => {
+      saveProjectsLocal(projects)
+      const { ghToken, projectsSha } = get()
+      if (!ghToken) return
+      try {
+        const sha = await saveJson(PROJECTS_FILE, projects, projectsSha, 'Uppdatera projects.json')
+        set({ projectsSha: sha })
+      } catch (e) {
+        set({ syncStatus: 'err', syncText: '✗ Kunde inte spara projektlista: ' + e.message })
+      }
+    },
+
+    // ── Load active project data from GitHub ─────────────────────────────
     loadFromGitHub: async () => {
-      const { ghOwner, ghToken } = get()
+      const { ghToken, currentProjectId } = get()
       set({ syncStatus: 'loading', syncText: '⏳ Laddar...' })
       try {
-        const { payload, sha } = await loadData()
+        const { payload, sha } = await loadData(curFile())
         const gallery = Array.isArray(payload) ? payload : (payload.gallery || [])
         const woo = Array.isArray(payload) ? [] : (payload.woo || [])
         const mapping = Array.isArray(payload) ? [] : (payload.mapping || [])
@@ -51,19 +125,23 @@ export const useStore = create((set, get) => {
           syncStatus: ghToken ? 'ok' : 'warn',
           syncText: ghToken ? '✓ Synkad' : '👁 Skrivskyddad – klicka ⚙ GitHub för att spara'
         })
-        saveLocalStorage(gallery, woo, mapping)
+        saveLocalStorage(currentProjectId, gallery, woo, mapping)
       } catch (e) {
-        set({ syncStatus: 'err', syncText: '✗ ' + e.message })
-        // Fallback to localStorage
-        const local = loadLocalStorage()
-        if (local) set({ gallery: local.gallery, woo: local.woo, mapping: local.mapping })
+        const local = loadLocalStorage(currentProjectId)
+        if (local) {
+          set({ gallery: local.gallery, woo: local.woo, mapping: local.mapping,
+            syncStatus: 'warn', syncText: '⚠ Visar lokal kopia (' + e.message + ')' })
+        } else {
+          set({ gallery: [], woo: [], mapping: [], dataSha: null,
+            syncStatus: 'err', syncText: '✗ ' + e.message })
+        }
       }
     },
 
-    // ── Save to GitHub ───────────────────────────────────────────────────
+    // ── Save active project data to GitHub ───────────────────────────────
     saveState: async () => {
-      const { gallery, woo, mapping, dataSha, ghToken, undoStack } = get()
-      saveLocalStorage(gallery, woo, mapping)
+      const { gallery, woo, mapping, dataSha, ghToken, undoStack, currentProjectId } = get()
+      saveLocalStorage(currentProjectId, gallery, woo, mapping)
       // Push undo
       const prev = undoStack[undoStack.length - 1]
       const snapshot = JSON.stringify({ gallery, woo })
@@ -74,7 +152,7 @@ export const useStore = create((set, get) => {
       if (!ghToken) { set({ syncStatus: 'warn', syncText: '⚠ Ingen token – sparas bara lokalt' }); return }
       set({ syncStatus: 'saving', syncText: '💾 Sparar...' })
       try {
-        const newSha = await saveData({ gallery, woo, mapping }, dataSha)
+        const newSha = await saveData({ gallery, woo, mapping }, dataSha, curFile())
         set({ dataSha: newSha, syncStatus: 'ok', syncText: '✓ Sparat' })
         setTimeout(() => set({ syncText: '✓ Synkad' }), 2000)
       } catch (e) {
@@ -82,9 +160,70 @@ export const useStore = create((set, get) => {
       }
     },
 
+    // ── Project management ───────────────────────────────────────────────
+    switchProject: async (id) => {
+      const { currentProjectId, gallery, woo, mapping, projects } = get()
+      if (id === currentProjectId || !projects.find(p => p.id === id)) return
+      // cache current project before switching
+      saveLocalStorage(currentProjectId, gallery, woo, mapping)
+      localStorage.setItem('kbg_current_project', id)
+      const local = loadLocalStorage(id)
+      set({
+        currentProjectId: id,
+        gallery: local?.gallery || [],
+        woo: local?.woo || [],
+        mapping: local?.mapping || [],
+        dataSha: null, undoStack: [], redoStack: [],
+        syncStatus: 'loading', syncText: '⏳ Laddar...'
+      })
+      await get().loadFromGitHub()
+    },
+
+    addProject: async (name) => {
+      const { projects, ghToken } = get()
+      let id = slugify(name), n = 1
+      while (projects.find(p => p.id === id)) id = `${slugify(name)}-${++n}`
+      const file = `data-${id}.json`
+      const project = { id, name: (name || '').trim() || id, file }
+      const newProjects = [...projects, project]
+      set({ projects: newProjects })
+      await get().saveProjects(newProjects)
+      // create an empty data file so the project is shareable via GitHub
+      if (ghToken) {
+        try { await saveJson(file, { gallery: [], woo: [], mapping: [] }, null, `Skapa ${file}`) } catch (_) {}
+      }
+      await get().switchProject(id)
+      return project
+    },
+
+    renameProject: async (id, name) => {
+      const { projects } = get()
+      const newProjects = projects.map(p => p.id === id ? { ...p, name: (name || '').trim() || p.name } : p)
+      set({ projects: newProjects })
+      await get().saveProjects(newProjects)
+    },
+
+    deleteProject: async (id) => {
+      if (id === 'default') return
+      const { projects, currentProjectId } = get()
+      const newProjects = projects.filter(p => p.id !== id)
+      localStorage.removeItem(stateKey(id))
+      set({ projects: newProjects })
+      await get().saveProjects(newProjects)
+      if (currentProjectId === id) await get().switchProject(newProjects[0]?.id || 'default')
+    },
+
+    // Reset active project to GitHub state (drops local edits)
+    resetProject: () => {
+      const { currentProjectId } = get()
+      localStorage.removeItem(stateKey(currentProjectId))
+      if (currentProjectId === 'default') localStorage.removeItem('kbg_state')
+      get().loadFromGitHub()
+    },
+
     // ── Undo / Redo ──────────────────────────────────────────────────────
     undo: () => {
-      const { undoStack, redoStack, gallery, woo } = get()
+      const { undoStack, redoStack, gallery, woo, currentProjectId } = get()
       if (!undoStack.length) return
       const prev = JSON.parse(undoStack[undoStack.length - 1])
       const current = JSON.stringify({ gallery, woo })
@@ -94,10 +233,10 @@ export const useStore = create((set, get) => {
         redoStack: [...redoStack, current].slice(-MAX_UNDO),
         syncStatus: 'warn', syncText: '⚠ Ångrat'
       })
-      saveLocalStorage(prev.gallery, prev.woo, get().mapping)
+      saveLocalStorage(currentProjectId, prev.gallery, prev.woo, get().mapping)
     },
     redo: () => {
-      const { undoStack, redoStack, gallery, woo } = get()
+      const { undoStack, redoStack, gallery, woo, currentProjectId } = get()
       if (!redoStack.length) return
       const next = JSON.parse(redoStack[redoStack.length - 1])
       const current = JSON.stringify({ gallery, woo })
@@ -106,7 +245,7 @@ export const useStore = create((set, get) => {
         redoStack: redoStack.slice(0, -1),
         undoStack: [...undoStack, current].slice(-MAX_UNDO),
       })
-      saveLocalStorage(next.gallery, next.woo, get().mapping)
+      saveLocalStorage(currentProjectId, next.gallery, next.woo, get().mapping)
     },
     pushUndo: () => {
       const { gallery, woo, undoStack } = get()

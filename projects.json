@@ -1,0 +1,4 @@
+[
+  { "id": "default", "name": "Standard", "file": "data.json" },
+  { "id": "cykelvardag", "name": "Cykelhuset", "file": "data-cykelvardag.json" }
+]
