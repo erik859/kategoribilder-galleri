@@ -2,6 +2,11 @@ export const GH_REPO = 'kategoribilder-galleri'
 export const DEFAULT_FILE = 'data.json'
 export const PROJECTS_FILE = 'projects.json'
 
+// Data files live in public/ so Vite copies them into the deployed build (dist/).
+// Reads use BASE_URL (which maps to dist root on Pages); writes target this path.
+const PUBLIC_DIR = 'public'
+function repoPath(file) { return `${PUBLIC_DIR}/${file}` }
+
 function getOwner() { return localStorage.getItem('gh_owner') || '' }
 function getToken() { return localStorage.getItem('gh_token') || '' }
 
@@ -35,7 +40,7 @@ export async function getSha(file) {
   if (!token || !owner) return null
   try {
     const meta = await fetch(
-      `https://api.github.com/repos/${owner}/${GH_REPO}/contents/${file}`,
+      `https://api.github.com/repos/${owner}/${GH_REPO}/contents/${repoPath(file)}`,
       { headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' } }
     )
     if (meta.ok) { const m = await meta.json(); return m.sha }
@@ -51,7 +56,7 @@ export async function saveJson(file, data, sha, message) {
   const body = { message: message || `Uppdatera ${file}`, content }
   if (sha) body.sha = sha
   const res = await fetch(
-    `https://api.github.com/repos/${owner}/${GH_REPO}/contents/${file}`,
+    `https://api.github.com/repos/${owner}/${GH_REPO}/contents/${repoPath(file)}`,
     {
       method: 'PUT',
       headers: {
