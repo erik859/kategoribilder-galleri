@@ -19,13 +19,12 @@ export async function verifyToken(token) {
 
 // ── Generic file IO ──────────────────────────────────────────────────────────
 
-// Read any JSON file via GitHub Pages (no auth, no CORS). Throws on 404 etc.
+// Read any JSON file from the same origin the app is served from.
+// Works locally (Vite serves the repo file) and on GitHub Pages (same-origin),
+// so reading needs no token/owner. import.meta.env.BASE_URL = '/kategoribilder-galleri/'.
 export async function loadJson(file) {
-  const owner = getOwner()
-  const res = await fetch(
-    `https://${owner}.github.io/${GH_REPO}/${file}?t=${Date.now()}`,
-    { cache: 'no-store' }
-  )
+  const base = import.meta.env.BASE_URL || '/'
+  const res = await fetch(`${base}${file}?t=${Date.now()}`, { cache: 'no-store' })
   if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status })
   return res.json()
 }
