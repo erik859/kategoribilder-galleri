@@ -68,6 +68,7 @@ export const useStore = create((set, get) => {
     ghOwner: localStorage.getItem('gh_owner') || '',
     ghToken: localStorage.getItem('gh_token') || '',
     showGhSetup: false,
+    showCsv: false,
 
     // Projects
     projects,
@@ -345,6 +346,7 @@ export const useStore = create((set, get) => {
     // ── View / filter ────────────────────────────────────────────────────
     setCurView: (v) => set({ curView: v }),
     setShowGhSetup: (v) => set({ showGhSetup: v }),
+    setShowCsv: (v) => set({ showCsv: v }),
     setFilter: (f) => set({ filter: f }),
   }
 })

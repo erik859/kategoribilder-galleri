@@ -1,10 +1,8 @@
-import { useState } from 'react'
 import { useStore } from '../store'
 import CsvExportModal from './modals/CsvExportModal'
 
 export default function Toolbar() {
-  const { filter, setFilter, loadFromGitHub, resetProject, syncStatus, syncText, undoStack, redoStack, undo, redo, gallery, setShowGhSetup } = useStore()
-  const [showCsv, setShowCsv] = useState(false)
+  const { filter, setFilter, loadFromGitHub, resetProject, syncStatus, syncText, undoStack, redoStack, undo, redo, gallery, setShowGhSetup, showCsv, setShowCsv } = useStore()
 
   const sections = gallery.map((s, i) => ({ label: `${s.section} (${s.cards.length})`, value: i }))
 

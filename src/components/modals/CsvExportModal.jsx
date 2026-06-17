@@ -3,7 +3,7 @@ import { useStore } from '../../store'
 import { getWooPath, getMappingRow, catToFilename } from '../../utils/helpers'
 
 export default function CsvExportModal({ onClose }) {
-  const { gallery, woo, mapping } = useStore()
+  const { gallery, woo, mapping, projects, currentProjectId } = useStore()
   const [selected, setSelected] = useState(() => {
     const s = {}
     gallery.forEach((sect, si) => sect.cards.forEach((_, ci) => { s[`${si}-${ci}`] = true }))
@@ -40,9 +40,17 @@ export default function CsvExportModal({ onClose }) {
       })
     })
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
+    // BOM inuti blobben (för Excel/UTF-8); Blob + DOM-anslutad <a> funkar i alla webbläsare
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const proj = projects.find(p => p.id === currentProjectId)
     const a = document.createElement('a')
-    a.href = 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv)
-    a.download = 'kategoribilder.csv'; a.click()
+    a.href = url
+    a.download = `kategoribilder-${proj?.id || 'standard'}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
     onClose()
   }
 

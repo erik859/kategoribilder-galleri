@@ -32,7 +32,7 @@ export default function App() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
         <h1 style={{ color: '#1F4E79', fontSize: 24, marginBottom: 0 }}>Kategoribilder — Galleri</h1>
         <button className="btn-primary" style={{ background: '#27AE60', borderColor: '#27AE60', padding: '7px 16px', fontSize: 13 }}
-          onClick={() => useStore.getState().setCurView('export')}>⬇ Exportera CSV</button>
+          onClick={() => useStore.getState().setShowCsv(true)}>⬇ Exportera CSV</button>
       </div>
       <p style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
         Klicka på bild → redigera &bull; Dubbelklicka på kategorinamn → redigera &bull; Dra & släpp bild direkt på kort
