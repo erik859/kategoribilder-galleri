@@ -24,15 +24,18 @@ export default function ImageModal({ si, ci, onClose }) {
   }
 
   function save() {
-    if (!url) return
+    const hasNewImage = !!url
+    // Tillåt spara om man bara ändrar alt/filnamn på ett befintligt bildkort;
+    // blockera bara när kortet saknar bild OCH ingen ny bild angetts.
+    if (!hasNewImage && card.type !== 'image') return
     pushUndo()
-    updateCard(si, ci, {
-      type: 'image', manualUrl: url,
+    const updates = {
       fn: fn.trim() ? fn.trim() : catToFilename(card.cat),
       fnCustom: !!fn.trim(),
       seoAlt: alt || card.cat + ' – ' + gallery[si].section + ' cykel',
-      seoAlt: alt
-    })
+    }
+    if (hasNewImage) { updates.type = 'image'; updates.manualUrl = url }
+    updateCard(si, ci, updates)
     saveState()
     onClose()
   }

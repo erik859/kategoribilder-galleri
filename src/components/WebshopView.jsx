@@ -228,8 +228,7 @@ export default function WebshopView() {
       const toL1=od?.l1||fromL1, toL2=od?.l2||fromL2, toL3=od?.l3
 
       if (fromL1===toL1 && fromL2===toL2 && toL3 && toL3!==fromL3) {
-        // Reorder within same L2
-        const cats = tree[fromL2] || tree[fromL1]?.[fromL2] || []
+        // Reorder within same L2 — flytta raden i woo till target-radens position
         pushUndo()
         const row = woo.find(r=>r[0]===fromL1&&r[1]===fromL2&&r[2]===fromL3)
         let filtered = woo.filter(r=>!(r[0]===fromL1&&r[1]===fromL2&&r[2]===fromL3))

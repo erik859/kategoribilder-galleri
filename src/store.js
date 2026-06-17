@@ -141,15 +141,10 @@ export const useStore = create((set, get) => {
 
     // ── Save active project data to GitHub ───────────────────────────────
     saveState: async () => {
-      const { gallery, woo, mapping, dataSha, ghToken, undoStack, currentProjectId } = get()
+      const { gallery, woo, mapping, dataSha, ghToken, currentProjectId } = get()
+      // Undo-snapshot tas av pushUndo() FÖRE varje mutation — gör det inte här igen
+      // (annars hamnar både före- och efter-läget i stacken → ångra kräver dubbeltryck)
       saveLocalStorage(currentProjectId, gallery, woo, mapping)
-      // Push undo
-      const prev = undoStack[undoStack.length - 1]
-      const snapshot = JSON.stringify({ gallery, woo })
-      if (!prev || prev !== snapshot) {
-        const newStack = [...undoStack, snapshot].slice(-MAX_UNDO)
-        set({ undoStack: newStack, redoStack: [] })
-      }
       if (!ghToken) { set({ syncStatus: 'warn', syncText: '⚠ Ingen token – sparas bara lokalt' }); return }
       set({ syncStatus: 'saving', syncText: '💾 Sparar...' })
       try {
@@ -330,8 +325,12 @@ export const useStore = create((set, get) => {
     },
 
     toggleHeader: (si, ci) => {
+      // Exklusivt: markera klickat kort som huvud och nollställ alla andra i sektionen
       const gallery = get().gallery.map((s, i) => i !== si ? s : {
-        ...s, cards: s.cards.map((c, j) => ({ ...c, is_header: j === ci ? !c.is_header : (ci === j ? false : c.is_header) }))
+        ...s, cards: s.cards.map((c, j) => {
+          if (j === ci) return { ...c, is_header: !c.is_header }
+          return c.is_header ? { ...c, is_header: false } : c
+        })
       })
       set({ gallery })
     },
