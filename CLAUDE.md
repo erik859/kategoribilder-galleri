@@ -1,5 +1,17 @@
 # Kategoribilder-galleri — Projektkontext för Claude Code
 
+## Snabbfakta
+
+| | |
+|---|---|
+| **Vad** | Webbverktyg för att hantera/exportera produktkategoribilder till WooCommerce. Multi-projekt (en datafil per kund). |
+| **Ägarskap** | Hermodex-internt verktyg · kundprojekt **Cykelhuset** (`data-cykelvardag.json`, mot cykelvardag.se). |
+| **Stack** | Vite 5 + React 18 + Zustand + @dnd-kit (ren JS). Ingen backend (GitHub API + localStorage). |
+| **Port** | **8002** – låst i `vite.config.js` (`server`/`preview` + `strictPort`), Hermodex portregister. Full dev-URL: `http://localhost:8002/kategoribilder-galleri/`. |
+| **Dev / Bygg / Test** | `npm run dev` · `npm run build` · `npm test` (vitest) / `npm run test:e2e` (playwright). |
+| **Git** | `erik859/kategoribilder-galleri` (GitHub Template). Deploy: push `main` → GitHub Actions → Pages. |
+| **Fallgropar** | Datafiler MÅSTE ligga i `public/`. Checka ALDRIG in `node_modules/`. Läsning same-origin; token behövs bara för att spara. |
+
 ## Vad är detta?
 
 Ett webbaserat verktyg för att hantera kategoribilder i en cykelwebshop. Används av Erik (erik859) och Johannes för att tilldela, organisera och exportera produktkategoribilder som sedan används i WooCommerce.
@@ -59,7 +71,7 @@ Befintliga projekt: **Standard** (`data.json`) och **Cykelhuset** (`data-cykelva
 | `public/projects.json` | Projektregister |
 | `vite.config.js` | `base: '/kategoribilder-galleri/'` (viktigt för Pages) |
 | `.gitignore` | Ignorerar `node_modules/`, `dist/` m.m. |
-| `.claude/launch.json` | Dev-server-config för Claude Preview (port 5173) |
+| `.claude/launch.json` | Dev-server-config för Claude Preview (port 8002) |
 | `.github/workflows/deploy.yml` | Bygger (`npm run build`) och deployar `dist/` till Pages vid push till `main` |
 
 ## Datastruktur (per projektfil)
@@ -96,14 +108,14 @@ Kräver **Node.js** (LTS). Scripts i `package.json`:
 
 ```bash
 npm install      # installera beroenden (en gång)
-npm run dev      # dev-server med hot reload → http://localhost:5173/kategoribilder-galleri/
+npm run dev      # dev-server med hot reload → http://localhost:8002/kategoribilder-galleri/
 npm run build    # produktionsbygge till dist/ (kopierar public/ → dist/)
 npm run preview  # förhandsgranska byggd version
 npm test         # vitest
 npm run test:e2e # playwright
 ```
 
-OBS: appen ligger på bas-sökvägen `/kategoribilder-galleri/` — gå till den fulla URL:en, inte bara `localhost:5173/`. Utan GitHub-token visas allt i skrivskyddat läge (data läses ändå same-origin).
+OBS: appen ligger på bas-sökvägen `/kategoribilder-galleri/` — gå till den fulla URL:en, inte bara `localhost:8002/`. Utan GitHub-token visas allt i skrivskyddat läge (data läses ändå same-origin).
 
 ## Deploy
 
