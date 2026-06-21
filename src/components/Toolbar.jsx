@@ -1,6 +1,10 @@
 import { useStore } from '../store'
 import CsvExportModal from './modals/CsvExportModal'
 
+// Synlig byggmarkör för felsökning — bumpa vid varje deploy som ska verifieras live.
+// Syns etiketten inte i appen kör webbläsaren ett gammalt (cachat) bygge → hård omladdning.
+const BUILD = 'b3'
+
 export default function Toolbar() {
   const { filter, setFilter, loadFromGitHub, resetProject, syncStatus, syncText, undoStack, redoStack, undo, redo, gallery, setShowGhSetup, showCsv, setShowCsv } = useStore()
 
@@ -33,6 +37,7 @@ export default function Toolbar() {
         <button onClick={redo} disabled={!redoStack.length} style={{ opacity: redoStack.length ? 1 : 0.4 }}>↪ Gör om</button>
 
         <span className={`sync-badge sync-${syncStatus}`}>{syncText}</span>
+        <span title="App-version (för felsökning)" style={{ fontSize: 10, color: '#bbb', marginLeft: 6, alignSelf: 'center' }}>{BUILD}</span>
       </div>
 
       {showCsv && <CsvExportModal onClose={() => setShowCsv(false)} />}

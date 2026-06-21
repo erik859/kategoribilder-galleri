@@ -35,13 +35,16 @@ export async function loadJson(file) {
 }
 
 // Get the current SHA of a file (needed for updates). null if no token / not found.
+// MÅSTE vara cache-busted: GitHub svarar med Cache-Control: private, max-age=60, så
+// utan detta kan webbläsaren returnera en gammal SHA direkt efter en sparning →
+// read-after-write-skyddet i store.js (SHA-matchning) missar → stale Pages-data laddas.
 export async function getSha(file) {
   const token = getToken(), owner = getOwner()
   if (!token || !owner) return null
   try {
     const meta = await fetch(
-      `https://api.github.com/repos/${owner}/${GH_REPO}/contents/${repoPath(file)}`,
-      { headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' } }
+      `https://api.github.com/repos/${owner}/${GH_REPO}/contents/${repoPath(file)}?ref=main&t=${Date.now()}`,
+      { cache: 'no-store', headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' } }
     )
     if (meta.ok) { const m = await meta.json(); return m.sha }
   } catch (_) {}
