@@ -159,6 +159,7 @@ export default function WebshopView() {
   const renameL1 = (old, nv) => { if (nv !== old) { pushUndo(); setWoo(woo.map(r => r[0]===old?[nv,r[1],r[2]]:r)); saveState() } }
   const renameL2 = (old, nv) => { if (nv !== old) { pushUndo(); setWoo(woo.map(r => r[1]===old?[r[0],nv,r[2]]:r)); saveState() } }
   const renameL3 = (old, nv) => { if (nv !== old) { pushUndo(); setWoo(woo.map(r => r[2]===old?[r[0],r[1],nv]:r)); saveState() } }
+  const delL1 = (l1) => { const n=woo.filter(r=>r[0]===l1).length; if (!confirm(`Ta bort hela huvudkategorin "${l1}" med alla underkategorier (${n} rader)?`)) return; pushUndo(); setWoo(woo.filter(r=>r[0]!==l1)); saveState() }
   const delL2 = (l1,l2) => { if (!confirm(`Ta bort "${l2}"?`)) return; pushUndo(); setWoo(woo.filter(r=>!(r[0]===l1&&r[1]===l2))); saveState() }
   const delL3 = (l1,l2,l3) => { if (!confirm(`Ta bort "${l3}"?`)) return; pushUndo(); setWoo(woo.filter(r=>!(r[0]===l1&&r[1]===l2&&r[2]===l3))); saveState() }
   const addL2 = (l1) => { const n=prompt(`Ny underkategori under ${l1}:`); if(n?.trim()){pushUndo();setWoo([...woo,[l1,n.trim(),'']]);saveState()} }
@@ -273,7 +274,7 @@ export default function WebshopView() {
               <SortableL1 key={l1} id={`l1::${l1}`} l1={l1} isL2DropHere={isL2DropHere}
                 isOpen={isOpen} pct={pct} has={has} total={total} l2keys={l2keys}
                 onToggle={() => setOpenL1(p=>({...p,[l1]:!p[l1]}))}
-                onAddL2={() => addL2(l1)} onRenameL1={nv => renameL1(l1, nv)}>
+                onAddL2={() => addL2(l1)} onRenameL1={nv => renameL1(l1, nv)} onDelL1={() => delL1(l1)}>
                 {l2keys.map(l2 => (
                   <SortableL2Box key={`${l1}::${l2}`} id={`${l1}::${l2}`}
                     l1={l1} l2={l2} cats={tree[l1][l2]} wsFilter={wsFilter}
@@ -300,7 +301,7 @@ export default function WebshopView() {
   )
 }
 
-function SortableL1({ id, l1, isL2DropHere, isOpen, pct, has, total, l2keys, onToggle, onAddL2, onRenameL1, children }) {
+function SortableL1({ id, l1, isL2DropHere, isOpen, pct, has, total, l2keys, onToggle, onAddL2, onRenameL1, onDelL1, children }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { type: 'l1', l1 } })
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(l1)
@@ -327,6 +328,9 @@ function SortableL1({ id, l1, isL2DropHere, isOpen, pct, has, total, l2keys, onT
         <span style={{fontSize:11,background:pct>=80?'#d4edda':pct>=40?'#fff3cd':'#f8d7da',color:pct>=80?'#155724':pct>=40?'#856404':'#721c24',padding:'1px 8px',borderRadius:10}}>{pct}%</span>
         <button style={{fontSize:10,padding:'1px 7px',border:'1px solid #27AE60',color:'#27AE60',background:'white',borderRadius:3,cursor:'pointer'}}
           onClick={e=>{e.stopPropagation();onAddL2()}}>＋ Lägg till</button>
+        <button style={{fontSize:12,padding:'1px 7px',border:'1px solid #e8a0a0',color:'#c44',background:'white',borderRadius:3,cursor:'pointer',flexShrink:0}}
+          title="Ta bort hela huvudkategorin" aria-label={`Ta bort huvudkategorin ${l1}`}
+          onClick={e=>{e.stopPropagation();onDelL1()}}>🗑</button>
       </div>
       {isOpen && (
         <div style={{paddingLeft:16,borderLeft:'3px solid #2E75B6',marginLeft:7,marginTop:4}}>
