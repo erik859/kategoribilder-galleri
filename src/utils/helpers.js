@@ -1,5 +1,20 @@
+// Translitterera svenska tecken så fil-/slug-namn blir webbsäkra (ingen åäö)
+export function translit(s) {
+  return String(s ?? '')
+    .replace(/å/g, 'a').replace(/ä/g, 'a').replace(/ö/g, 'o')
+    .replace(/Å/g, 'A').replace(/Ä/g, 'A').replace(/Ö/g, 'O')
+}
+
+// Slug av godtycklig text: åäö-fritt, gemener, separatorer → _
+export function toSlug(s) {
+  return translit(s).toLowerCase()
+    .replace(/&/g, ' ')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/_+/g, '_').replace(/^_|_$/g, '')
+}
+
 export function catToFilename(cat) {
-  return cat
+  return translit(cat)
     .replace(/[/\\:*?"<>|]/g, '-')
     .replace(/\s+/g, '_')
     .replace(/-+/g, '-')

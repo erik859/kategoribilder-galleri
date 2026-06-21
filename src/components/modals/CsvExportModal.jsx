@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store'
-import { getWooPath, getMappingRow, catToFilename } from '../../utils/helpers'
+import { getWooPath, getMappingRow, catToFilename, translit } from '../../utils/helpers'
 
 export default function CsvExportModal({ onClose }) {
   const { gallery, woo, mapping, projects, currentProjectId } = useStore()
@@ -30,7 +30,7 @@ export default function CsvExportModal({ onClose }) {
         if (!selected[`${si}-${ci}`]) return
         const wp = getWooPath(c.cat, sect.section, woo)
         const mr = getMappingRow(c.cat, sect.section, mapping) || {}
-        const id = `${sect.section.replace(/\s+/g,'_')}__${c.cat.replace(/\s+/g,'_')}`
+        const id = `${translit(sect.section).replace(/\s+/g,'_')}__${translit(c.cat).replace(/\s+/g,'_')}`
         rows.push([id, mr.bidex_name||'', mr.bidex_code||'', mr.dst_name||'', mr.dst_code||'',
           mr.wc_cat_name_1||wp.l1, mr.wc_cat_code_1||'', mr.wc_cat_name_2||wp.l2, mr.wc_cat_code_2||'',
           mr.wc_cat_name_3||wp.l3, mr.wc_cat_code_3||'',
