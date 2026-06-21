@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { loadData, saveData, loadJson, saveJson, getSha, PROJECTS_FILE } from './utils/github'
+import { loadData, saveData, loadJson, saveJson, getSha, verifyToken, PROJECTS_FILE } from './utils/github'
 import { catToFilename } from './utils/helpers'
 
 const MAX_UNDO = 20
@@ -122,11 +122,16 @@ export const useStore = create((set, get) => {
         const gallery = Array.isArray(payload) ? payload : (payload.gallery || [])
         const woo = Array.isArray(payload) ? [] : (payload.woo || [])
         const mapping = Array.isArray(payload) ? [] : (payload.mapping || [])
-        set({ gallery, woo, mapping, dataSha: sha,
-          syncStatus: ghToken ? 'ok' : 'warn',
-          syncText: ghToken ? '✓ Synkad' : '👁 Skrivskyddad – klicka ⚙ GitHub för att spara'
-        })
+        set({ gallery, woo, mapping, dataSha: sha })
         saveLocalStorage(currentProjectId, gallery, woo, mapping)
+        // Verifiera token – "✓ Synkad" ska bara visas om sparning FAKTISKT funkar.
+        // (Läsning funkar utan token, så en utgången token gav tidigare falskt "Synkad".)
+        if (!ghToken) {
+          set({ syncStatus: 'warn', syncText: '👁 Skrivskyddad – klicka ⚙ GitHub för att spara' })
+        } else {
+          try { await verifyToken(ghToken); set({ syncStatus: 'ok', syncText: '✓ Synkad' }) }
+          catch { set({ syncStatus: 'err', syncText: '⚠ Token ogiltig/utgången – ändringar sparas INTE (klicka ⚙ GitHub)' }) }
+        }
       } catch (e) {
         const local = loadLocalStorage(currentProjectId)
         if (local) {
@@ -152,7 +157,8 @@ export const useStore = create((set, get) => {
         set({ dataSha: newSha, syncStatus: 'ok', syncText: '✓ Sparat' })
         setTimeout(() => set({ syncText: '✓ Synkad' }), 2000)
       } catch (e) {
-        set({ syncStatus: 'err', syncText: '✗ ' + e.message })
+        const bad = /bad credential|401|unauthorized/i.test(e.message)
+        set({ syncStatus: 'err', syncText: bad ? '✗ EJ SPARAT – token ogiltig/utgången (⚙ GitHub)' : '✗ EJ SPARAT – ' + e.message })
       }
     },
 
