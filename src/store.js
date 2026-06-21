@@ -176,17 +176,19 @@ export const useStore = create((set, get) => {
     },
 
     addProject: async (name) => {
-      const { projects, ghToken } = get()
+      const { projects, ghToken, gallery, woo, mapping } = get()
       let id = slugify(name), n = 1
       while (projects.find(p => p.id === id)) id = `${slugify(name)}-${++n}`
       const file = `data-${id}.json`
       const project = { id, name: (name || '').trim() || id, file }
       const newProjects = [...projects, project]
+      // Nytt projekt ärver aktivt projekts data (bilder + struktur) som startbas
+      const initial = JSON.parse(JSON.stringify({ gallery, woo, mapping }))
+      saveLocalStorage(id, initial.gallery, initial.woo, initial.mapping)
       set({ projects: newProjects })
       await get().saveProjects(newProjects)
-      // create an empty data file so the project is shareable via GitHub
       if (ghToken) {
-        try { await saveJson(file, { gallery: [], woo: [], mapping: [] }, null, `Skapa ${file}`) } catch (_) {}
+        try { await saveJson(file, initial, null, `Skapa ${file} (kopia av aktivt projekt)`) } catch (_) {}
       }
       await get().switchProject(id)
       return project
