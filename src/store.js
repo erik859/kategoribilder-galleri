@@ -34,6 +34,28 @@ function saveLocalStorage(projectId, gallery, woo, mapping) {
   try { localStorage.setItem(stateKey(projectId), JSON.stringify({ gallery, woo, mapping })) } catch (_) {}
 }
 
+// ── Dirty flag + saved-SHA: gör lokala ändringar hållbara ────────────────────
+// "dirty" = projektets lokala ändringar är ÄNNU INTE bekräftade på GitHub. Så länge
+// flaggan är satt får en oförändrad/släpande remote ALDRIG skriva över lokalt läge
+// vid omladdning (annars "kommer raderingar tillbaka" när token saknas/utgått).
+// "savedSha" = repo-SHA:n för vår senaste lyckade sparning. Repo-SHA uppdateras direkt
+// vid commit (till skillnad från GitHub Pages som släpar 1–3 min); matchar den vid
+// laddning vet vi att vårt lokala läge = repo och kan lita på lokalt tills Pages hinner i kapp.
+function dirtyKey(id) { return `kbg_dirty_${id}` }
+function setDirty(id, on) {
+  try { if (on) localStorage.setItem(dirtyKey(id), '1'); else localStorage.removeItem(dirtyKey(id)) } catch (_) {}
+}
+function isDirty(id) {
+  try { return localStorage.getItem(dirtyKey(id)) === '1' } catch { return false }
+}
+function savedShaKey(id) { return `kbg_savedsha_${id}` }
+function getSavedSha(id) {
+  try { return localStorage.getItem(savedShaKey(id)) || null } catch { return null }
+}
+function setSavedSha(id, sha) {
+  try { if (sha) localStorage.setItem(savedShaKey(id), sha); else localStorage.removeItem(savedShaKey(id)) } catch (_) {}
+}
+
 function slugify(name) {
   return (name || '')
     .toLowerCase()
@@ -114,18 +136,58 @@ export const useStore = create((set, get) => {
     },
 
     // ── Load active project data from GitHub ─────────────────────────────
+    // Lokala (ej GitHub-sparade) ändringar skyddas mot att skrivas över av en
+    // oförändrad/släpande remote. Se dirty/savedSha-kommentaren längst upp.
     loadFromGitHub: async () => {
       const { ghToken, currentProjectId } = get()
       set({ syncStatus: 'loading', syncText: '⏳ Laddar...' })
+      const dirty = isDirty(currentProjectId)
+      const localCache = loadLocalStorage(currentProjectId)
       try {
         const { payload, sha } = await loadData(curFile())
-        const gallery = Array.isArray(payload) ? payload : (payload.gallery || [])
-        const woo = Array.isArray(payload) ? [] : (payload.woo || [])
-        const mapping = Array.isArray(payload) ? [] : (payload.mapping || [])
-        set({ gallery, woo, mapping, dataSha: sha })
-        saveLocalStorage(currentProjectId, gallery, woo, mapping)
-        // Verifiera token – "✓ Synkad" ska bara visas om sparning FAKTISKT funkar.
-        // (Läsning funkar utan token, så en utgången token gav tidigare falskt "Synkad".)
+        const remote = {
+          gallery: Array.isArray(payload) ? payload : (payload.gallery || []),
+          woo: Array.isArray(payload) ? [] : (payload.woo || []),
+          mapping: Array.isArray(payload) ? [] : (payload.mapping || []),
+        }
+
+        // 1) Osparade lokala ändringar finns → behåll dem, skriv ALDRIG över med remote.
+        if (dirty && localCache) {
+          set({ gallery: localCache.gallery, woo: localCache.woo, mapping: localCache.mapping, dataSha: sha })
+          if (!ghToken) {
+            set({ syncStatus: 'warn', syncText: '⚠ Osparade ändringar (bara lokalt) – klicka ⚙ GitHub för permanent sparning' })
+            return
+          }
+          // Giltig token → flytta upp de väntande ändringarna till GitHub automatiskt.
+          try {
+            await verifyToken(ghToken)
+            set({ syncStatus: 'saving', syncText: '💾 Sparar väntande ändringar...' })
+            await get().saveState()
+          } catch {
+            set({ syncStatus: 'err', syncText: '⚠ Token ogiltig/utgången – osparade ändringar kvar lokalt (klicka ⚙ GitHub)' })
+          }
+          return
+        }
+
+        // 2) Inga osparade ändringar, men remote-LÄSNINGEN (Pages) kan släpa efter en nyss
+        //    gjord sparning. Matchar repo-SHA:n vår senaste sparning är lokalt = repo →
+        //    lita på lokalt tills Pages hunnit i kapp (annars "blinkar" raderingar tillbaka).
+        const savedSha = getSavedSha(currentProjectId)
+        if (savedSha && sha && sha === savedSha && localCache) {
+          set({ gallery: localCache.gallery, woo: localCache.woo, mapping: localCache.mapping, dataSha: sha })
+          if (!ghToken) { set({ syncStatus: 'warn', syncText: '👁 Skrivskyddad – klicka ⚙ GitHub för att spara' }); return }
+          try { await verifyToken(ghToken); set({ syncStatus: 'ok', syncText: '✓ Synkad' }) }
+          catch { set({ syncStatus: 'err', syncText: '⚠ Token ogiltig/utgången – ändringar sparas INTE (klicka ⚙ GitHub)' }) }
+          return
+        }
+
+        // 3) Ren remote (förstagång / cross-device / agent-ändring) → använd serverns version.
+        set({ gallery: remote.gallery, woo: remote.woo, mapping: remote.mapping, dataSha: sha })
+        saveLocalStorage(currentProjectId, remote.gallery, remote.woo, remote.mapping)
+        setDirty(currentProjectId, false)
+        if (sha) setSavedSha(currentProjectId, sha)
+        // "✓ Synkad" ska bara visas om sparning FAKTISKT funkar (läsning funkar utan token,
+        // så en utgången token gav tidigare falskt "Synkad").
         if (!ghToken) {
           set({ syncStatus: 'warn', syncText: '👁 Skrivskyddad – klicka ⚙ GitHub för att spara' })
         } else {
@@ -133,10 +195,10 @@ export const useStore = create((set, get) => {
           catch { set({ syncStatus: 'err', syncText: '⚠ Token ogiltig/utgången – ändringar sparas INTE (klicka ⚙ GitHub)' }) }
         }
       } catch (e) {
-        const local = loadLocalStorage(currentProjectId)
-        if (local) {
-          set({ gallery: local.gallery, woo: local.woo, mapping: local.mapping,
-            syncStatus: 'warn', syncText: '⚠ Visar lokal kopia (' + e.message + ')' })
+        // Remote-läsning misslyckades → falla tillbaka på lokal kopia om den finns.
+        if (localCache) {
+          set({ gallery: localCache.gallery, woo: localCache.woo, mapping: localCache.mapping,
+            syncStatus: 'warn', syncText: (dirty ? '⚠ Osparade ändringar (offline?) – ' : '⚠ Visar lokal kopia – ') + e.message })
         } else {
           set({ gallery: [], woo: [], mapping: [], dataSha: null,
             syncStatus: 'err', syncText: '✗ ' + e.message })
@@ -150,15 +212,24 @@ export const useStore = create((set, get) => {
       // Undo-snapshot tas av pushUndo() FÖRE varje mutation — gör det inte här igen
       // (annars hamnar både före- och efter-läget i stacken → ångra kräver dubbeltryck)
       saveLocalStorage(currentProjectId, gallery, woo, mapping)
-      if (!ghToken) { set({ syncStatus: 'warn', syncText: '⚠ Ingen token – sparas bara lokalt' }); return }
+      // Lokalt sparat men ännu inte bekräftat på GitHub → markera "dirty" så att en
+      // släpande/oförändrad remote inte skriver över ändringen vid nästa omladdning.
+      setDirty(currentProjectId, true)
+      if (!ghToken) { set({ syncStatus: 'warn', syncText: '⚠ Sparat lokalt – klicka ⚙ GitHub för permanent sparning' }); return }
       set({ syncStatus: 'saving', syncText: '💾 Sparar...' })
       try {
         const newSha = await saveData({ gallery, woo, mapping }, dataSha, curFile())
+        setDirty(currentProjectId, false)
+        setSavedSha(currentProjectId, newSha)
         set({ dataSha: newSha, syncStatus: 'ok', syncText: '✓ Sparat' })
         setTimeout(() => set({ syncText: '✓ Synkad' }), 2000)
       } catch (e) {
-        const bad = /bad credential|401|unauthorized/i.test(e.message)
-        set({ syncStatus: 'err', syncText: bad ? '✗ EJ SPARAT – token ogiltig/utgången (⚙ GitHub)' : '✗ EJ SPARAT – ' + e.message })
+        // Behåll dirty=true → ändringen ligger kvar lokalt och flyttas upp automatiskt
+        // nästa gång en giltig token finns. Var tydlig med att GitHub-sparningen INTE gick.
+        const bad = /bad credential|401|403|unauthorized/i.test(e.message)
+        set({ syncStatus: 'err', syncText: bad
+          ? '✗ EJ SPARAT på GitHub – token ogiltig/utgången (kvar lokalt) (⚙ GitHub)'
+          : '✗ EJ SPARAT på GitHub – ' + e.message + ' (kvar lokalt)' })
       }
     },
 
@@ -193,8 +264,14 @@ export const useStore = create((set, get) => {
       saveLocalStorage(id, initial.gallery, initial.woo, initial.mapping)
       set({ projects: newProjects })
       await get().saveProjects(newProjects)
+      // Skydda nya projektets lokala kopia tills datafilen ligger på GitHub (annars skulle
+      // switchProject→load 404:a på den ej deployade filen och tömma projektet).
+      setDirty(id, true)
       if (ghToken) {
-        try { await saveJson(file, initial, null, `Skapa ${file} (kopia av aktivt projekt)`) } catch (_) {}
+        try {
+          const newSha = await saveJson(file, initial, null, `Skapa ${file} (kopia av aktivt projekt)`)
+          setDirty(id, false); setSavedSha(id, newSha)
+        } catch (_) {}
       }
       await get().switchProject(id)
       return project
@@ -212,6 +289,8 @@ export const useStore = create((set, get) => {
       const { projects, currentProjectId } = get()
       const newProjects = projects.filter(p => p.id !== id)
       localStorage.removeItem(stateKey(id))
+      setDirty(id, false)
+      setSavedSha(id, null)
       set({ projects: newProjects })
       await get().saveProjects(newProjects)
       if (currentProjectId === id) await get().switchProject(newProjects[0]?.id || 'default')
@@ -222,6 +301,8 @@ export const useStore = create((set, get) => {
       const { currentProjectId } = get()
       localStorage.removeItem(stateKey(currentProjectId))
       if (currentProjectId === 'default') localStorage.removeItem('kbg_state')
+      setDirty(currentProjectId, false)
+      setSavedSha(currentProjectId, null)
       get().loadFromGitHub()
     },
 
@@ -238,6 +319,7 @@ export const useStore = create((set, get) => {
         syncStatus: 'warn', syncText: '⚠ Ångrat'
       })
       saveLocalStorage(currentProjectId, prev.gallery, prev.woo, get().mapping)
+      setDirty(currentProjectId, true)
     },
     redo: () => {
       const { undoStack, redoStack, gallery, woo, currentProjectId } = get()
@@ -250,6 +332,7 @@ export const useStore = create((set, get) => {
         undoStack: [...undoStack, current].slice(-MAX_UNDO),
       })
       saveLocalStorage(currentProjectId, next.gallery, next.woo, get().mapping)
+      setDirty(currentProjectId, true)
     },
     pushUndo: () => {
       const { gallery, woo, undoStack } = get()
