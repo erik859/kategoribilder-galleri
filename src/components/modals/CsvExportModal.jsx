@@ -39,7 +39,13 @@ export default function CsvExportModal({ onClose }) {
           c.drive_id||'', c.fn||''])
       })
     })
-    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
+    // Citera bara fält som verkligen kräver det (kommatecken, citattecken, radbrytning).
+    // Rena fält skrivs utan omgivande "-tecken → renare fil.
+    const esc = v => {
+      const s = String(v ?? '')
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const csv = rows.map(r => r.map(esc).join(',')).join('\n')
     // BOM inuti blobben (för Excel/UTF-8); Blob + DOM-anslutad <a> funkar i alla webbläsare
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)

@@ -3,7 +3,7 @@ import CsvExportModal from './modals/CsvExportModal'
 
 // Synlig byggmarkör för felsökning — bumpa vid varje deploy som ska verifieras live.
 // Syns etiketten inte i appen kör webbläsaren ett gammalt (cachat) bygge → hård omladdning.
-const BUILD = 'b3'
+const BUILD = 'b4'
 
 export default function Toolbar() {
   const { filter, setFilter, loadFromGitHub, resetProject, syncStatus, syncText, undoStack, redoStack, undo, redo, gallery, setShowGhSetup, showCsv, setShowCsv } = useStore()
