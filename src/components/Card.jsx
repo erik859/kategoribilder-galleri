@@ -5,7 +5,7 @@ import ImageModal from './modals/ImageModal'
 import MoveModal from './modals/MoveModal'
 
 export default function Card({ card, si, ci, dragListeners, dragAttributes }) {
-  const { updateCard, deleteCard, toggleHeader, pushUndo, saveState, gallery } = useStore()
+    const { updateCard, renameCard, deleteCard, toggleHeader, pushUndo, saveState, gallery } = useStore()
   const [showImageModal, setShowImageModal] = useState(false)
   const [showMoveModal, setShowMoveModal] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -25,7 +25,7 @@ export default function Card({ card, si, ci, dragListeners, dragAttributes }) {
   function commitEdit() {
     const v = editVal.trim() || card.cat
     if (v !== card.cat) {
-      pushUndo(); updateCard(si, ci, { cat: v }); saveState()
+            pushUndo(); renameCard(si, ci, v); saveState()
     }
     setEditing(false)
   }
