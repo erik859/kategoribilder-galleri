@@ -1,0 +1,285 @@
+{
+ "gallery": [
+  {
+   "section": "Guide: Clik Valve",
+   "slug": "clik-valve",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Clik Valve-insatsen i närbild",
+     "is_header": true,
+     "fn": "clik-valve/ventil-narbild.jpg",
+     "seoAlt": "Clik Valve-insatsen i närbild",
+     "search_url": "https://www.google.com/search?tbm=isch&q=Schwalbe%20Clik%20Valve%20close%20up",
+     "source": "LEV (Schwalbe)"
+    },
+    {
+     "type": "missing",
+     "cat": "Pumphuvud klickas på ventilen",
+     "is_header": false,
+     "fn": "clik-valve/pump-klick.jpg",
+     "seoAlt": "Pumphuvud klickas på ventilen",
+     "search_url": "https://www.google.com/search?tbm=isch&q=Schwalbe%20Clik%20Valve%20pump%20head",
+     "source": "LEV/EGET"
+    },
+    {
+     "type": "missing",
+     "cat": "Schwalbe-slang med SCV i förpackning",
+     "is_header": false,
+     "fn": "clik-valve/scv-slang.jpg",
+     "seoAlt": "Schwalbe-slang med SCV i förpackning",
+     "search_url": "https://www.google.com/search?tbm=isch&q=Schwalbe%20Clik%20Valve%20tube%20box",
+     "source": "LEV/KATALOG"
+    }
+   ]
+  },
+  {
+   "section": "Guide: Shimano Service Center",
+   "slug": "shimano-service-center",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Officiell Shimano Service Center-logga",
+     "is_header": true,
+     "fn": "shimano-service-center/ssc-badge.jpg",
+     "seoAlt": "Officiell Shimano Service Center-logga",
+     "search_url": "https://www.google.com/search?tbm=isch&q=Shimano%20Service%20Center%20logo%20badge",
+     "source": "OFFICIELL (Shimano)"
+    },
+    {
+     "type": "missing",
+     "cat": "Våra mekaniker vid arbetsbänken",
+     "is_header": false,
+     "fn": "shimano-service-center/mekaniker-verkstad.jpg",
+     "seoAlt": "Våra mekaniker vid arbetsbänken",
+     "search_url": "https://www.google.com/search?tbm=isch&q=cykelverkstad%20mekaniker",
+     "source": "EGET"
+    },
+    {
+     "type": "missing",
+     "cat": "E-TUBE-diagnos mot elcykel",
+     "is_header": false,
+     "fn": "shimano-service-center/etube-diagnos.jpg",
+     "seoAlt": "E-TUBE-diagnos mot elcykel",
+     "search_url": "https://www.google.com/search?tbm=isch&q=Shimano%20E-TUBE%20diagnostics%20laptop",
+     "source": "EGET/LEV"
+    }
+   ]
+  },
+  {
+   "section": "Guide: Välja cykellås",
+   "slug": "cykellas",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Rätt låst cykel – ram i fast objekt",
+     "is_header": true,
+     "fn": "cykellas/las-fast-ram.jpg",
+     "seoAlt": "Rätt låst cykel – ram i fast objekt",
+     "search_url": "https://www.google.com/search?tbm=isch&q=bike%20locked%20frame%20to%20rack",
+     "source": "EGET"
+    },
+    {
+     "type": "missing",
+     "cat": "Kryptonite Evolution-serien",
+     "is_header": false,
+     "fn": "cykellas/kryptonite-evolution-serie.jpg",
+     "seoAlt": "Kryptonite Evolution-serien",
+     "search_url": "https://www.google.com/search?tbm=isch&q=Kryptonite%20Evolution%20lock%20series",
+     "source": "LEV (Kryptonite)"
+    }
+   ]
+  },
+  {
+   "section": "Guide: Elcykelbatteri",
+   "slug": "elcykelbatteri",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "STEPS-batteri i närbild / avtaget",
+     "is_header": true,
+     "fn": "elcykelbatteri/batteri-narbild.jpg",
+     "seoAlt": "STEPS-batteri i närbild / avtaget",
+     "search_url": "https://www.google.com/search?tbm=isch&q=Shimano%20STEPS%20ebike%20battery",
+     "source": "LEV (Shimano)"
+    }
+   ]
+  },
+  {
+   "section": "Guide: Cykelhjälm storlek",
+   "slug": "cykelhjalm-storlek",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Måttband runt huvudet",
+     "is_header": true,
+     "fn": "cykelhjalm-storlek/mata-huvud.jpg",
+     "seoAlt": "Måttband runt huvudet",
+     "search_url": "https://www.google.com/search?tbm=isch&q=measure%20head%20circumference%20helmet",
+     "source": "EGET"
+    },
+    {
+     "type": "missing",
+     "cat": "Rotationsskydd i genomskärning",
+     "is_header": false,
+     "fn": "cykelhjalm-storlek/mips-kineticore.jpg",
+     "seoAlt": "Rotationsskydd i genomskärning",
+     "search_url": "https://www.google.com/search?tbm=isch&q=MIPS%20helmet%20technology%20cutaway",
+     "source": "LEV (Lazer/MIPS)"
+    }
+   ]
+  },
+  {
+   "section": "Guide: Byta cykelkedja",
+   "slug": "byta-cykelkedja",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Kedjeslitagemått mäts på cykel",
+     "is_header": true,
+     "fn": "byta-cykelkedja/slitagematt.jpg",
+     "seoAlt": "Kedjeslitagemått mäts på cykel",
+     "search_url": "https://www.google.com/search?tbm=isch&q=chain%20wear%20indicator%20tool",
+     "source": "EGET"
+    },
+    {
+     "type": "missing",
+     "cat": "Sliten och ny kedja bredvid varandra",
+     "is_header": false,
+     "fn": "byta-cykelkedja/sliten-vs-ny.jpg",
+     "seoAlt": "Sliten och ny kedja bredvid varandra",
+     "search_url": "https://www.google.com/search?tbm=isch&q=worn%20vs%20new%20bike%20chain",
+     "source": "EGET"
+    }
+   ]
+  },
+  {
+   "section": "Guide: Kedjeskötsel",
+   "slug": "kedjeskotsel",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Borsta/avfetta drivlinan",
+     "is_header": true,
+     "fn": "kedjeskotsel/rengora.jpg",
+     "seoAlt": "Borsta/avfetta drivlinan",
+     "search_url": "https://www.google.com/search?tbm=isch&q=cleaning%20bike%20chain%20brush",
+     "source": "EGET"
+    },
+    {
+     "type": "missing",
+     "cat": "Droppa olja per länk",
+     "is_header": false,
+     "fn": "kedjeskotsel/smorja-droppe.jpg",
+     "seoAlt": "Droppa olja per länk",
+     "search_url": "https://www.google.com/search?tbm=isch&q=lubricating%20bike%20chain%20drop",
+     "source": "EGET"
+    }
+   ]
+  },
+  {
+   "section": "Guide: Vax eller olja",
+   "slug": "vax-eller-olja",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Ren, vaxad kedja i närbild",
+     "is_header": true,
+     "fn": "vax-eller-olja/vaxad-kedja.jpg",
+     "seoAlt": "Ren, vaxad kedja i närbild",
+     "search_url": "https://www.google.com/search?tbm=isch&q=waxed%20bike%20chain%20clean",
+     "source": "EGET"
+    }
+   ]
+  },
+  {
+   "section": "Guide: Cykelbelysning",
+   "slug": "cykelbelysning",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Framlampans ljusbild på mörk väg",
+     "is_header": true,
+     "fn": "cykelbelysning/ljusbild-morker.jpg",
+     "seoAlt": "Framlampans ljusbild på mörk väg",
+     "search_url": "https://www.google.com/search?tbm=isch&q=bike%20light%20beam%20dark%20road",
+     "source": "EGET/LEV"
+    }
+   ]
+  },
+  {
+   "section": "Guide: Välja elcykel (uppgradering)",
+   "slug": "valja-elcykel",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Batavus-elcykel pressbild",
+     "is_header": true,
+     "fn": "valja-elcykel/marke-batavus.jpg",
+     "seoAlt": "Batavus-elcykel pressbild",
+     "search_url": "https://www.google.com/search?tbm=isch&q=Batavus%20e-bike",
+     "source": "LEV (Batavus)"
+    },
+    {
+     "type": "missing",
+     "cat": "Winther-elcykel pressbild",
+     "is_header": false,
+     "fn": "valja-elcykel/marke-winther.jpg",
+     "seoAlt": "Winther-elcykel pressbild",
+     "search_url": "https://www.google.com/search?tbm=isch&q=Winther%20e-bike",
+     "source": "LEV (Winther)"
+    },
+    {
+     "type": "missing",
+     "cat": "Ecoride/Gazelle pressbild",
+     "is_header": false,
+     "fn": "valja-elcykel/marke-ecoride-gazelle.jpg",
+     "seoAlt": "Ecoride/Gazelle pressbild",
+     "search_url": "https://www.google.com/search?tbm=isch&q=Ecoride%20e-bike",
+     "source": "LEV"
+    }
+   ]
+  },
+  {
+   "section": "Guide: Pendlingscykel (uppgradering)",
+   "slug": "pendlingscykel",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Pendlare i stadstrafik",
+     "is_header": true,
+     "fn": "pendlingscykel/pendlare-trafik.jpg",
+     "seoAlt": "Pendlare i stadstrafik",
+     "search_url": "https://www.google.com/search?tbm=isch&q=bike%20commuter%20city%20traffic",
+     "source": "LEV/EGET"
+    },
+    {
+     "type": "missing",
+     "cat": "Cykel m. skärmar, pakethållare, väska",
+     "is_header": false,
+     "fn": "pendlingscykel/utrustad-cykel.jpg",
+     "seoAlt": "Cykel m. skärmar, pakethållare, väska",
+     "search_url": "https://www.google.com/search?tbm=isch&q=commuter%20bike%20fenders%20rack%20panniers",
+     "source": "LEV/EGET"
+    }
+   ]
+  },
+  {
+   "section": "Kategori: bildbehov",
+   "slug": "kategori",
+   "cards": [
+    {
+     "type": "missing",
+     "cat": "Vinterdäck & dubbdäck – huvudbild",
+     "is_header": true,
+     "fn": "kategori/vinterdack/huvudbild.jpg",
+     "seoAlt": "Vinterdäck & dubbdäck – huvudbild",
+     "search_url": "https://www.google.com/search?tbm=isch&q=studded%20winter%20bike%20tire",
+     "source": "KATALOG (dubbdäck)"
+    }
+   ]
+  }
+ ],
+ "woo": [],
+ "mapping": []
+}

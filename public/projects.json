@@ -1,5 +1,22 @@
 [
-  { "id": "default", "name": "Standard", "file": "data.json" },
-  { "id": "cykelvardag", "name": "Cykelhuset", "file": "data-cykelvardag.json" },
-  { "id": "cykelvardag-2", "name": "cykelvardag", "file": "data-cykelvardag-2.json" }
+  {
+    "id": "default",
+    "name": "Standard",
+    "file": "data.json"
+  },
+  {
+    "id": "cykelvardag",
+    "name": "Cykelhuset",
+    "file": "data-cykelvardag.json"
+  },
+  {
+    "id": "cykelvardag-2",
+    "name": "cykelvardag",
+    "file": "data-cykelvardag-2.json"
+  },
+  {
+    "id": "cykelnatur",
+    "name": "Cykel & Natur (bildbehov)",
+    "file": "data-cykelnatur.json"
+  }
 ]
